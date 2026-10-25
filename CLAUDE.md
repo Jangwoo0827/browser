@@ -18,7 +18,7 @@
 
 - 이 폴더(`browser/`)는 자체 git 저장소이며 원격은 `github.com/Jangwoo0827/browser`. 상위 `VScode` 저장소에는 추적시키지 않는다.
 - 단계가 끝날 때마다 commit + push (묻지 않음). `gh` CLI 없음 → 저장소 생성/릴리스는 GitHub API + `git credential fill` 토큰 사용 (토큰 출력 금지).
-- Chromium 바이너리/소스 체크아웃은 이 저장소에 **커밋하지 않는다**. 스냅샷은 `%LOCALAPPDATA%\BrowserProject\chromium-snapshot`에 둔다. 저장소에는 `patches/`, `scripts/`, `docs/`, `extensions/`(번들 확장 소스)만 둔다.
+- Chromium 바이너리/소스 체크아웃은 이 저장소에 **커밋하지 않는다**. 스냅샷은 `%USERPROFILE%\BrowserProject\chromium-snapshot`에 둔다 (`%LOCALAPPDATA%`는 Claude 데스크톱 앱(MSIX)에서 가상화되어 Chromium 샌드박스가 chrome.exe에 접근하지 못함). 저장소에는 `patches/`, `scripts/`, `docs/`, `extensions/`(번들 확장 소스)만 둔다.
 - 세션이 끊기면 `CLAUDE.md`와 `docs/progress.md`를 먼저 읽고 이어간다.
 - PowerShell 5.1에서 한글 파일은 `Get/Set-Content`로 다루지 말고 Edit/Write 사용. `.ps1`은 ASCII로 유지.
 

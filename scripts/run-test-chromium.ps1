@@ -14,7 +14,9 @@ param(
   [switch]$Update,
   [switch]$ResetProfile,
   [string]$Url = "https://chromewebstore.google.com/",
-  [string]$Root = (Join-Path $env:LOCALAPPDATA "BrowserProject\chromium-snapshot")
+  # NOT under %LOCALAPPDATA%: when launched from the Claude desktop app (MSIX), AppData is virtualized
+  # and Chromium's sandbox cannot access chrome.exe there.
+  [string]$Root = (Join-Path $env:USERPROFILE "BrowserProject\chromium-snapshot")
 )
 
 $ErrorActionPreference = "Stop"
@@ -38,7 +40,14 @@ $installed = if (Test-Path (Join-Path $Root "revision.txt")) { (Get-Content (Joi
 if (-not (Test-Path $chromeExe) -or $installed -ne $Revision) {
   $zip = Join-Path $Root "chrome-win-$Revision.zip"
   Write-Host "Downloading Chromium snapshot r$Revision (~370 MB) ..."
-  Invoke-WebRequest "$base/$Revision/chrome-win.zip" -OutFile $zip
+  # curl.exe resumes partial downloads (-C -) and retries; Invoke-WebRequest drops on flaky links
+  for ($i = 1; $i -le 20; $i++) {
+    & curl.exe -L -C - --fail --retry 5 --retry-delay 3 -o $zip "$base/$Revision/chrome-win.zip"
+    if ($LASTEXITCODE -eq 0) { break }
+    Write-Host "download interrupted (attempt $i), resuming ..."
+    Start-Sleep -Seconds 3
+  }
+  if ($LASTEXITCODE -ne 0) { throw "download failed" }
   if (Test-Path $binDir) { Remove-Item -Recurse -Force $binDir }
   Expand-Archive $zip -DestinationPath $binDir
   Remove-Item $zip
@@ -50,7 +59,7 @@ if ($ResetProfile -and (Test-Path $profileDir)) {
 }
 
 Write-Host "Chromium r$Revision, profile: $profileDir"
-Start-Process $chromeExe -ArgumentList @(
+Start-Process $chromeExe -WorkingDirectory (Split-Path $chromeExe) -ArgumentList @(
   "--user-data-dir=`"$profileDir`"",
   "--no-first-run",
   "--no-default-browser-check",

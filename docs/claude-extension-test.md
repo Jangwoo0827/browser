@@ -19,7 +19,7 @@ Chromium을 빌드하기 전에, 공식 미리 빌드된 Chromium에서 Claude �
 powershell -ExecutionPolicy Bypass -File scripts\run-test-chromium.ps1
 ```
 
-- 처음 실행 시 스냅샷을 `%LOCALAPPDATA%\BrowserProject\chromium-snapshot`에 받고, 별도 프로필(`profile/`)로 실행한다. 평소 Chrome 프로필은 건드리지 않는다.
+- 처음 실행 시 스냅샷을 `%USERPROFILE%\BrowserProject\chromium-snapshot`에 받고, 별도 프로필(`profile/`)로 실행한다. 평소 Chrome 프로필은 건드리지 않는다.
 - 옵션: `-Update`(최신으로 재다운로드), `-Revision <n>`(고정), `-ResetProfile`(프로필 초기화)
 
 ## 체크리스트
