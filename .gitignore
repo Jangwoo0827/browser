@@ -1,0 +1,6 @@
+logs/
+src/
+depot_tools/
+out/
+.chromium/
+*.zip
