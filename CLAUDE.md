@@ -10,11 +10,15 @@
 4. 큰 작업 전에는 계획을 먼저 보여주고, 디스크를 크게 쓰거나 되돌리기 어려운 명령은 실행 전에 나에게 확인한다.
 5. 매 단계가 끝나면 `docs/progress.md`에 한 일 / 남은 일 / 알려진 문제를 기록한다.
 
+## 현재 접근 방식 (2026-10-26 변경)
+
+이 PC는 디스크 여유 ~93GB / RAM 15.7GB라 Chromium **소스 빌드는 하지 않는다.** 공식 snapshot Chromium(약 1GB) + 번들 MV3 확장 + 작은 런처로 구현한다. 자세한 내용과 한계는 `docs/build-plan.md`. 소스 빌드는 확장으로 불가능한 항목이 생기고 외장 SSD/클라우드가 준비됐을 때만 재검토.
+
 ## 작업 규칙 (이 머신)
 
 - 이 폴더(`browser/`)는 자체 git 저장소이며 원격은 `github.com/Jangwoo0827/browser`. 상위 `VScode` 저장소에는 추적시키지 않는다.
 - 단계가 끝날 때마다 commit + push (묻지 않음). `gh` CLI 없음 → 저장소 생성/릴리스는 GitHub API + `git credential fill` 토큰 사용 (토큰 출력 금지).
-- Chromium 소스 체크아웃(`src/`, `depot_tools/`)은 이 저장소에 **커밋하지 않는다**. 저장소에는 `patches/`, `scripts/`, `docs/`, `extensions/`(번들 확장 소스)만 둔다. 체크아웃 위치는 디스크 여유가 있는 곳(아래 docs/progress.md 참고).
+- Chromium 바이너리/소스 체크아웃은 이 저장소에 **커밋하지 않는다**. 스냅샷은 `%LOCALAPPDATA%\BrowserProject\chromium-snapshot`에 둔다. 저장소에는 `patches/`, `scripts/`, `docs/`, `extensions/`(번들 확장 소스)만 둔다.
 - 세션이 끊기면 `CLAUDE.md`와 `docs/progress.md`를 먼저 읽고 이어간다.
 - PowerShell 5.1에서 한글 파일은 `Get/Set-Content`로 다루지 말고 Edit/Write 사용. `.ps1`은 ASCII로 유지.
 
