@@ -44,3 +44,4 @@
 - 구현: `extensions/newtab` (MV3, `chrome_url_overrides.newtab`). 사이트 타일 그리드(파비콘/글자 아바타), 검색창(주소처럼 보이면 바로 이동, 아니면 기본 검색엔진 `chrome.search`), 시계, 타일 추가/편집/삭제/드래그 순서 변경. 데이터는 `chrome.storage.local`.
 - `browser.config.json`: `startUrl`을 `chrome://newtab/`로, 확장 목록에 `extensions/newtab` 추가.
 - 알려진 문제: 타일은 스크린샷 썸네일이 아니라 파비콘 기반(Opera의 페이지 썸네일은 확장으로 불가/비용 큼). 사이드바 항목과 목록은 별도 저장.
+- 문제 발견: 첫 실행에서 Google 기본 새 탭이 떴음(스크린샷). Preferences에는 `chrome_url_overrides.newtab`이 정상 등록(active)돼 있어, 시작 시 확장이 로드되기 전에 첫 탭이 `chrome://newtab`으로 열린 경쟁 상태로 추정. 조치: `extensions/newtab/manifest.json`에 `key`를 넣어 확장 ID를 고정(`nnklkcbakchplbggofbfjijbmfepehnh`)하고 `startUrl`을 확장 페이지 URL로 직접 지정. Ctrl+T 새 탭의 오버라이드는 별도 확인 필요.

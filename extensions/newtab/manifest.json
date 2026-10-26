@@ -3,7 +3,18 @@
   "name": "Speed Dial",
   "version": "0.1.0",
   "description": "Opera-style speed dial new tab page: a grid of your favourite sites plus a search box.",
-  "permissions": ["storage", "search"],
-  "chrome_url_overrides": { "newtab": "newtab.html" },
-  "icons": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }
+  "permissions": [
+    "storage",
+    "search"
+  ],
+  "chrome_url_overrides": {
+    "newtab": "newtab.html"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzaAVAZQFPc5nP+UwryIeFd74ggMdSWwk9PZVeAyPelvR+WY6L2hFtu6ApcuvfZbtRNUQXNX1O7WMO1u1XWuMKLwahKSttfV0qixbeCxmJ9X3vKpntAL77IlQvE9a6wPe/4gqqjyXfEbMqoY27dZV29V9tCJJhUtBfjTyES5HQVqEIm/Qx5EkNihT1vGOCgN29gjVR3HZHhlDmNGRAdW2diPzsBiXf8Xctu5XYAu6rHynBY8Z/mD+vY6QyIKzwVNVD8S+dYxaAooAQOi4Qvq2MzmGRgqrCnTiI8FhQAhRxUe06pSt/ps3LdUyKcADvvLBfM7rB+jLkr4CoJMivE0mdQIDAQAB"
 }
