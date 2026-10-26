@@ -1,0 +1,9 @@
+{
+  "manifest_version": 3,
+  "name": "Speed Dial",
+  "version": "0.1.0",
+  "description": "Opera-style speed dial new tab page: a grid of your favourite sites plus a search box.",
+  "permissions": ["storage", "search"],
+  "chrome_url_overrides": { "newtab": "newtab.html" },
+  "icons": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }
+}

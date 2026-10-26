@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>새 탭</title>
+  <link rel="stylesheet" href="newtab.css">
+</head>
+<body>
+  <main>
+    <div id="clock" aria-hidden="true"></div>
+    <form id="search" autocomplete="off">
+      <input id="q" type="text" placeholder="검색어 또는 주소 입력" aria-label="검색 또는 주소 입력" autofocus>
+    </form>
+    <div id="grid" role="list"></div>
+  </main>
+
+  <dialog id="dlg">
+    <form method="dialog" id="dlgForm">
+      <h2 id="dlgTitle">사이트 추가</h2>
+      <label>이름<input id="dName" maxlength="40" required></label>
+      <label>주소<input id="dUrl" placeholder="예: claude.ai" required></label>
+      <p id="dMsg" role="status"></p>
+      <div class="row">
+        <button value="cancel" type="button" id="dCancel">취소</button>
+        <button value="ok" type="submit" class="primary">저장</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="newtab.js"></script>
+</body>
+</html>
