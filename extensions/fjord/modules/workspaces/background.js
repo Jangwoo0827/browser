@@ -210,26 +210,31 @@ chrome.commands.onCommand.addListener(async (command) => {
   await switchTo(win.id, next.id);
 });
 
+// Other extensions (e.g. Claude) create a tab and put it into their own group a moment later. Wait for them
+// before adopting a loose tab, otherwise we steal it and their group disappears from under them.
+const ADOPT_DELAY_MS = 1500;
+const later = (fn) => setTimeout(fn, ADOPT_DELAY_MS);
+
 // New tabs join the active workspace.
 chrome.tabs.onCreated.addListener((tab) => {
-  enqueue(async () => {
+  later(() => enqueue(async () => {
     const t = await chrome.tabs.get(tab.id).catch(() => null);
     if (!t || t.pinned || t.groupId !== -1 || !(await isNormalWindow(t.windowId))) return;
     const wss = await getWorkspaces();
     const activeId = await getActiveId(t.windowId, wss);
     await assignTab(t, wss.find((w) => w.id === activeId));
-  });
+  }));
 });
 
 // A tab dragged into another window joins that window's active workspace.
 chrome.tabs.onAttached.addListener((tabId) => {
-  enqueue(async () => {
+  later(() => enqueue(async () => {
     const t = await chrome.tabs.get(tabId).catch(() => null);
     if (!t || t.pinned || t.groupId !== -1 || !(await isNormalWindow(t.windowId))) return;
     const wss = await getWorkspaces();
     const activeId = await getActiveId(t.windowId, wss);
     await assignTab(t, wss.find((w) => w.id === activeId));
-  });
+  }));
 });
 
 // Activating a tab of another workspace (search, history, a click on an expanded group) switches the workspace.
@@ -258,5 +263,5 @@ async function init() {
 chrome.runtime.onInstalled.addListener(init);
 chrome.runtime.onStartup.addListener(init);
 chrome.windows.onCreated.addListener((w) => {
-  if (w.type === "normal") setTimeout(() => adoptLooseTabs(w.id), 500);
+  if (w.type === "normal") setTimeout(() => adoptLooseTabs(w.id), ADOPT_DELAY_MS);
 });

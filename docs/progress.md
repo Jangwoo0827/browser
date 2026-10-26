@@ -93,3 +93,9 @@
 - 확인됨: `install-native-hosts.cmd` 실행 후 `HKCU\Software\Chromium\NativeMessagingHosts`에 `com.anthropic.claude_browser_extension`(Claude Desktop)과 `com.anthropic.claude_code_browser_extension`(Claude Code) 둘 다 등록. Claude Code 매니페스트(`%APPDATA%\Claude Code\ChromeNativeHost\...json`)는 존재, `allowed_origins`에 Claude 확장 ID(`fcoeoabgfenejglbffodgkkbkcdhcgfn`) 포함, 호스트는 `~/.claude/chrome/chrome-native-host.bat` → `claude.exe --chrome-native-host`.
 - 확인 안 됨: 실제 연결. Fjord(`profile-app`)와 테스트 프로필(`profile`) 어디에도 Claude 확장이 설치돼 있지 않음(Secure Preferences 확인). `list_connected_browsers`에는 일반 Chrome 하나만 보임(Fjord보다 먼저 연결됨).
 - 다음: Fjord에서 Claude 확장 설치 + 로그인(안내 페이지 또는 웹스토어) → `list_connected_browsers`에 브라우저가 2개로 보이는지 확인 → `/chrome`에서 Fjord 선택.
+
+## Claude Code `/chrome` 연동 검증 결과 (2026-10-27) ✅ 연결 확인, 일부 불안정
+- 연결됨: Fjord에 Claude 확장 설치·로그인 후 `list_connected_browsers`에 브라우저 2개(일반 Chrome + Fjord)로 보임. Fjord를 재시작해도 같은 deviceId로 자동 재연결. Fjord를 선택해 탭 그룹 생성, `https://example.com` 이동, 페이지 JS 실행까지 성공(UA `Chrome/158.0.0.0` = 스냅샷, 일반 Chrome 156과 구분).
+- 불안정: 브라우저를 막 켠 직후 `tabs_context_mcp(createIfEmpty)`가 `No group with id: …`로 여러 번 실패했다가 이후엔 성공. 추적(CDP로 Fjord 서비스 워커의 탭/그룹 이벤트 기록) 결과 Claude가 만든 그룹(제목 "Claude" → 세션 제목)이 만든 직후 지워지고 탭이 워크스페이스 그룹(`개인`)으로 옮겨진 경우가 있었음. 워크스페이스 모듈을 끈 상태에서도 한 번 실패해서 단독 원인은 아님. 조치: 워크스페이스가 새 탭/새 창/이동된 탭을 가져가는 시점을 1.5초 늦춰 다른 확장이 먼저 그룹을 만들도록 함(원인 확정은 못 함).
+- 도구: `launch.ps1 -DebugPort <port>`(loopback 전용 `--remote-debugging-port`), `launch.vbs`가 인자를 전달. 확장 서비스 워커 로그/이벤트 추적에 사용.
+- 발견: Fjord 프로필(`profile-app`)에 예전에 불러온 `ddmmkmpddiopjojigiakicbcghlmhndo`(사용자의 Universal Ad Skipper를 unpacked로 직접 로드한 것으로 추정)가 남아 있어 광고 차단이 둘 다 활성. 통합 확장의 광고 차단 모듈만 쓰려면 `chrome://extensions`에서 그 항목을 제거할 것. 통합 광고 차단의 `Duplicate script ID 'scriptlets'` 경고는 `applyEnabled`가 두 번 동시에 도는 데서 오는 무해한 경고(원본 확장 코드 동작).

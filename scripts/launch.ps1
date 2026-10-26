@@ -6,6 +6,7 @@
 #>
 param(
   [switch]$Update,
+  [int]$DebugPort = 0,
   [string]$Url = ""
 )
 
@@ -23,6 +24,7 @@ foreach ($e in $cfg.extensions) {
 }
 
 $extra = @("--disable-features=DisableLoadExtensionCommandLineSwitch")
+if ($DebugPort -gt 0) { $extra += "--remote-debugging-port=$DebugPort" }  # loopback only; for debugging extensions
 if ($exts.Count -gt 0) { $extra += "--load-extension=$($exts -join ',')" }
 
 # Pin Fjord + Claude to the toolbar (only possible while this profile's browser is not running).
