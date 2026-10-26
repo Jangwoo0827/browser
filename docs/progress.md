@@ -52,3 +52,8 @@
 - **광고 차단** (`extensions/adblock`): DNR 정적 규칙 세트 3개(EasyList 46,767 / EasyPrivacy 56,324 / List-KR 1,331 = 약 10.4만 개, 약 11MB). `scripts/update-filters.mjs`가 내려받아 `scripts/lib/abp-to-dnr.mjs`로 변환 → `extensions/adblock/rules/`(생성물, 커밋 안 함). 런처가 규칙이 없으면 자동 생성, `launch.ps1 -UpdateFilters`로 갱신. 팝업: 현재 사이트별 끄기(`allowAllRequests`), 전체/리스트별 토글, 배지로 차단 수 표시.
 - 변환 범위: 네트워크 필터(`||`, `|`, `^`, `*`, `$third-party/$domain/리소스 타입/$important`, `@@`)만. 정규식, 요소 숨김(`##`), 스크립틀릿, `$csp/$redirect/$removeparam` 등은 제외 → YouTube 영상 광고 같은 건 못 막음.
 - 한계/위험: 확장당 정적 규칙 30,000개까지만 보장, 초과분은 전역 풀(330,000)에서 남는 만큼 사용. Chrome이 일부 리스트를 켜지 못하면 팝업에 경고 표시. 규칙 JSON이 Chrome 검증에서 거부되는지는 브라우저 로드 전엔 확인 불가(제가 아는 제약 조건은 스크립트로 검사, 위반 0).
+
+## 광고 차단: 직접 만든 확장으로 교체 (2026-10-27)
+- 사용자의 기존 확장 `VScode/extension/adblock`(Universal Ad Skipper & Blocker 2.0.0, github.com/Jangwoo0827/adblock)이 DNR + 요소 숨김 + 스크립틀릿 + YouTube 광고 건너뛰기까지 포함해 더 완성도가 높아서 이걸 번들하기로 함.
+- `browser.config.json`의 확장 경로를 `../extension/adblock`(저장소 밖 형제 폴더)로 지정. 내가 만든 `extensions/adblock`, `scripts/update-filters.mjs`, 변환기는 삭제(브랜치 `adblock` 히스토리에 남아 있음).
+- 알려진 문제: 저장소 밖 경로를 참조하므로 이 PC 외에서는 해당 폴더가 필요(배포 단계에서 서브모듈 또는 복사로 정리).

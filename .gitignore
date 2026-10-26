@@ -4,4 +4,3 @@ depot_tools/
 out/
 .chromium/
 *.zip
-extensions/adblock/rules/
