@@ -99,3 +99,13 @@
 - 불안정: 브라우저를 막 켠 직후 `tabs_context_mcp(createIfEmpty)`가 `No group with id: …`로 여러 번 실패했다가 이후엔 성공. 추적(CDP로 Fjord 서비스 워커의 탭/그룹 이벤트 기록) 결과 Claude가 만든 그룹(제목 "Claude" → 세션 제목)이 만든 직후 지워지고 탭이 워크스페이스 그룹(`개인`)으로 옮겨진 경우가 있었음. 워크스페이스 모듈을 끈 상태에서도 한 번 실패해서 단독 원인은 아님. 조치: 워크스페이스가 새 탭/새 창/이동된 탭을 가져가는 시점을 1.5초 늦춰 다른 확장이 먼저 그룹을 만들도록 함(원인 확정은 못 함).
 - 도구: `launch.ps1 -DebugPort <port>`(loopback 전용 `--remote-debugging-port`), `launch.vbs`가 인자를 전달. 확장 서비스 워커 로그/이벤트 추적에 사용.
 - 발견: Fjord 프로필(`profile-app`)에 예전에 불러온 `ddmmkmpddiopjojigiakicbcghlmhndo`(사용자의 Universal Ad Skipper를 unpacked로 직접 로드한 것으로 추정)가 남아 있어 광고 차단이 둘 다 활성. 통합 확장의 광고 차단 모듈만 쓰려면 `chrome://extensions`에서 그 항목을 제거할 것. 통합 광고 차단의 `Duplicate script ID 'scriptlets'` 경고는 `applyEnabled`가 두 번 동시에 도는 데서 오는 무해한 경고(원본 확장 코드 동작).
+
+## 작업표시줄 브랜딩 (2026-10-27) ✅ — "Chromium" → "Fjord"
+- 문제: 작업표시줄에 Chromium 아이콘/이름으로 표시.
+- 해결(소스 수정 없이, 스냅샷 파일 후처리):
+  - `scripts/brand-exe.mjs` + `scripts/set-exe-icon.ps1`: `chrome.exe`를 `fjord.exe`로 복사하고(원본 유지) 버전 정보(FileDescription/ProductName 등)를 rcedit로, 메인 아이콘 그룹 `IDR_MAINFRAME`은 Win32 `UpdateResource`로 교체(rcedit `--set-icon`은 문자열 이름 아이콘 그룹을 못 바꿈). 스냅샷이 바뀌면 자동 재생성. rcedit은 `%USERPROFILE%\BrowserProject\tools`에 설치(저장소 밖).
+  - `scripts/brand-paks.mjs`: 로케일 팩(`locales/*.pak`, v5 UTF-8)의 "Chromium" 문자열을 이름으로 교체(창 제목 접미사 등, 57개 팩/38,768 문자열). 원본은 `.orig`로 보관. 자체 테스트: 항목 ID/개수 유지 확인.
+  - `scripts/taskbar-identity.ps1`(+ `scripts/lib/shell-props.ps1`): 숨김 감시 프로세스가 Fjord 창마다 AppUserModelID(`Fjord.Browser`, 설정 `appId`), 재실행 명령(`wscript launch.vbs`), 아이콘, 표시 이름을 지정. 바탕화면 바로가기에도 같은 ID를 찍음(`make-shortcut.ps1`). → 실행 중인 창을 우클릭 "작업 표시줄에 고정"하면 올바른 런처/아이콘/이름으로 고정되고, 바로가기를 고정해도 같은 버튼으로 묶임.
+- 확인: UI Automation으로 작업표시줄 버튼이 `Fjord - 1개의 실행 중인 창`, `Appid: Fjord.Browser`로 표시, 창 제목 `새 탭 - Fjord`, 프로세스 `fjord.exe`. `exe` 아이콘은 추출해서 새 아이콘 확인.
+- 한계: 현재 아이콘은 내가 만든 임시 아이콘(UI 디자인 단계에서 교체 예정). 창에 미리 쓰인 값을 다시 읽을 수는 없음(셸 제약) → 감시 프로세스가 창 핸들마다 한 번 기록. 브라우저가 켜져 있는 동안은 exe/팩을 다시 쓸 수 없어 런처가 건너뜀(콜드 스타트에만 적용).
+- 런처 개선: `logs/launch.log`에 실행 기록(숨김 실행 실패가 안 보이던 문제), 실행 중 판정을 프로세스 이름 `chrome.exe`/`fjord.exe` 모두로.
