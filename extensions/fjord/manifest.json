@@ -15,7 +15,8 @@
     "alarms",
     "tabs",
     "tabGroups",
-    "search"
+    "search",
+    "management"
   ],
   "host_permissions": ["<all_urls>"],
   "background": { "service_worker": "background.js", "type": "module" },
