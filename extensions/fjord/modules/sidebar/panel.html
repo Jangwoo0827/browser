@@ -13,6 +13,7 @@
     </button>
     <div id="items"></div>
     <div class="spacer"></div>
+    <div id="builtins"></div>
     <button id="settings" class="rail-btn" title="항목 추가/삭제 (설정)" aria-label="설정">
       <span class="ico">&#9881;</span><span class="label">설정</span>
     </button>
@@ -26,7 +27,6 @@
     <div id="empty">왼쪽 아이콘을 눌러 사이트를 여세요.<br>항목은 &#9881; 설정에서 추가/삭제할 수 있어요.</div>
     <iframe id="frame" hidden allow="clipboard-read; clipboard-write; fullscreen; autoplay; microphone; camera"></iframe>
   </main>
-  <script src="store.js"></script>
-  <script src="panel.js"></script>
+  <script type="module" src="panel.js"></script>
 </body>
 </html>

@@ -1,3 +1,5 @@
+import { Store } from "./store.js";
+
 const $ = (id) => document.getElementById(id);
 let items = [];
 

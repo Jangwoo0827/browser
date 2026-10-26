@@ -2,7 +2,7 @@ const $ = (id) => document.getElementById(id);
 let windowId;
 let editing = null;
 
-const send = (msg) => chrome.runtime.sendMessage({ ...msg, windowId });
+const send = (msg) => chrome.runtime.sendMessage({ ...msg, type: "ws:" + msg.type, windowId });
 
 function btn(text, title, fn) {
   const b = document.createElement("button");
@@ -65,7 +65,7 @@ function row(ws, activeId) {
   );
   li.onclick = async () => {
     await send({ type: "switch", id: ws.id });
-    window.close();
+    refresh();
   };
   return li;
 }
