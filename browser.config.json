@@ -2,5 +2,8 @@
   "name": "Fjord",
   "startUrl": "about:blank",
   "profileName": "profile-app",
-  "extensions": ["extensions/fjord"]
+  "extensions": [
+    "extensions/fjord"
+  ],
+  "appId": "Fjord.Browser"
 }

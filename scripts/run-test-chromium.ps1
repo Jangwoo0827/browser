@@ -15,6 +15,7 @@ param(
   [switch]$ResetProfile,
   [string]$Url = "https://chromewebstore.google.com/",
   [string]$ProfileName = "profile",
+  [string]$ExeName = "chrome.exe",
   [string[]]$ExtraArgs = @(),
   [switch]$NoLaunch,
   # NOT under %LOCALAPPDATA%: when launched from the Claude desktop app (MSIX), AppData is virtualized
@@ -38,6 +39,7 @@ if (-not $Revision) {
 }
 
 $chromeExe = Join-Path $binDir "chrome-win\chrome.exe"
+$launchExe = Join-Path $binDir ("chrome-win\" + $ExeName)
 $installed = if (Test-Path (Join-Path $Root "revision.txt")) { (Get-Content (Join-Path $Root "revision.txt") -Raw).Trim() } else { "" }
 
 if (-not (Test-Path $chromeExe) -or $installed -ne $Revision) {
@@ -63,7 +65,7 @@ if ($ResetProfile -and (Test-Path $profileDir)) {
 
 Write-Host "Chromium r$Revision, profile: $profileDir"
 if ($NoLaunch) { return }
-Start-Process $chromeExe -WorkingDirectory (Split-Path $chromeExe) -ArgumentList (@(
+Start-Process $launchExe -WorkingDirectory (Split-Path $chromeExe) -ArgumentList (@(
   "--user-data-dir=`"$profileDir`"",
   "--no-first-run",
   "--no-default-browser-check"

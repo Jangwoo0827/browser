@@ -17,4 +17,10 @@ $s.WorkingDirectory = $repo
 $s.IconLocation = (Join-Path $repo "assets\icon.ico")
 $s.Description = $cfg.name
 $s.Save()
+
+# Same AppUserModelID as the browser windows (taskbar-identity.ps1) so the pinned shortcut and the window share one taskbar button.
+. (Join-Path $PSScriptRoot "lib\shell-props.ps1")
+$appId = $cfg.appId
+if (-not $appId) { $appId = "$($cfg.name).Browser" }
+[ShellProps]::SetLinkAppId($lnk, $appId)
 Write-Host "Shortcut created: $lnk"
