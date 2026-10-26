@@ -5,3 +5,4 @@ import "./modules/sidebar/background.js";
 import "./modules/workspaces/background.js";
 import "./modules/newtab/background.js";
 import "./modules/adblock/background.js";
+import "./modules/claude/background.js";

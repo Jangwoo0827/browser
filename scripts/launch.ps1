@@ -25,6 +25,14 @@ foreach ($e in $cfg.extensions) {
 $extra = @("--disable-features=DisableLoadExtensionCommandLineSwitch")
 if ($exts.Count -gt 0) { $extra += "--load-extension=$($exts -join ',')" }
 
+# Pin Fjord + Claude to the toolbar (only possible while this profile's browser is not running).
+$profileDir = Join-Path $env:USERPROFILE ("BrowserProject\chromium-snapshot\" + $cfg.profileName)
+$running = Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" -ErrorAction SilentlyContinue |
+  Where-Object { $_.CommandLine -like "*$($cfg.profileName)*" }
+if (-not $running -and (Get-Command node -ErrorAction SilentlyContinue)) {
+  & node (Join-Path $PSScriptRoot "pin-extensions.mjs") $profileDir "nnklkcbakchplbggofbfjijbmfepehnh" "fcoeoabgfenejglbffodgkkbkcdhcgfn" | Out-Null
+}
+
 $testScript = Join-Path $PSScriptRoot "run-test-chromium.ps1"
 if ($Update) { & $testScript -NoLaunch -Update }
 & $testScript -ProfileName $cfg.profileName -ExtraArgs $extra -Url $Url
