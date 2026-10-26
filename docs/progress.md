@@ -45,3 +45,10 @@
 - `browser.config.json`: `startUrl`을 `chrome://newtab/`로, 확장 목록에 `extensions/newtab` 추가.
 - 알려진 문제: 타일은 스크린샷 썸네일이 아니라 파비콘 기반(Opera의 페이지 썸네일은 확장으로 불가/비용 큼). 사이드바 항목과 목록은 별도 저장.
 - 문제 발견: 첫 실행에서 Google 기본 새 탭이 떴음(스크린샷). Preferences에는 `chrome_url_overrides.newtab`이 정상 등록(active)돼 있어, 시작 시 확장이 로드되기 전에 첫 탭이 `chrome://newtab`으로 열린 경쟁 상태로 추정. 조치: `extensions/newtab/manifest.json`에 `key`를 넣어 확장 ID를 고정(`nnklkcbakchplbggofbfjijbmfepehnh`)하고 `startUrl`을 확장 페이지 URL로 직접 지정. Ctrl+T 새 탭의 오버라이드는 별도 확인 필요.
+
+## 프롬프트 5 — 워크스페이스 + 광고 차단 🔶 (구현 완료, 사용자 확인 대기)
+- 계획: `docs/plan-workspaces-adblock.md`. 각 기능은 브랜치(`workspaces`, `adblock`)에서 만들어 main에 병합.
+- **워크스페이스** (`extensions/workspaces`): 탭 그룹(이름·색 동일) = 워크스페이스, 활성 것만 펼치고 나머지는 접음. 새 탭은 활성 워크스페이스로 자동 편입. 툴바 팝업에서 전환/추가/이름 변경/삭제, `Alt+Q`로 다음 워크스페이스. 기본 `개인`/`업무`.
+- **광고 차단** (`extensions/adblock`): DNR 정적 규칙 세트 3개(EasyList 46,767 / EasyPrivacy 56,324 / List-KR 1,331 = 약 10.4만 개, 약 11MB). `scripts/update-filters.mjs`가 내려받아 `scripts/lib/abp-to-dnr.mjs`로 변환 → `extensions/adblock/rules/`(생성물, 커밋 안 함). 런처가 규칙이 없으면 자동 생성, `launch.ps1 -UpdateFilters`로 갱신. 팝업: 현재 사이트별 끄기(`allowAllRequests`), 전체/리스트별 토글, 배지로 차단 수 표시.
+- 변환 범위: 네트워크 필터(`||`, `|`, `^`, `*`, `$third-party/$domain/리소스 타입/$important`, `@@`)만. 정규식, 요소 숨김(`##`), 스크립틀릿, `$csp/$redirect/$removeparam` 등은 제외 → YouTube 영상 광고 같은 건 못 막음.
+- 한계/위험: 확장당 정적 규칙 30,000개까지만 보장, 초과분은 전역 풀(330,000)에서 남는 만큼 사용. Chrome이 일부 리스트를 켜지 못하면 팝업에 경고 표시. 규칙 JSON이 Chrome 검증에서 거부되는지는 브라우저 로드 전엔 확인 불가(제가 아는 제약 조건은 스크립트로 검사, 위반 0).
