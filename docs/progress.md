@@ -88,3 +88,8 @@
   2. `scripts\install-native-hosts.cmd` 더블클릭(미러링) 후 Fjord 재시작.
   3. Claude Code에서 `/chrome` → Fjord가 연결되는지 확인하고 `docs/claude-extension-test.md` 14·15번에 기록.
 - 알려진 문제: Claude Desktop 호스트와 Claude Code 호스트가 같은 확장 ID를 허용해서 충돌하는 사례가 보고됨(anthropics/claude-code 이슈 20411). 연결이 안 되면 어느 호스트가 응답하는지 확인 필요.
+
+## Claude Code `/chrome` 연동 검증 (2026-10-27) — 부분 확인
+- 확인됨: `install-native-hosts.cmd` 실행 후 `HKCU\Software\Chromium\NativeMessagingHosts`에 `com.anthropic.claude_browser_extension`(Claude Desktop)과 `com.anthropic.claude_code_browser_extension`(Claude Code) 둘 다 등록. Claude Code 매니페스트(`%APPDATA%\Claude Code\ChromeNativeHost\...json`)는 존재, `allowed_origins`에 Claude 확장 ID(`fcoeoabgfenejglbffodgkkbkcdhcgfn`) 포함, 호스트는 `~/.claude/chrome/chrome-native-host.bat` → `claude.exe --chrome-native-host`.
+- 확인 안 됨: 실제 연결. Fjord(`profile-app`)와 테스트 프로필(`profile`) 어디에도 Claude 확장이 설치돼 있지 않음(Secure Preferences 확인). `list_connected_browsers`에는 일반 Chrome 하나만 보임(Fjord보다 먼저 연결됨).
+- 다음: Fjord에서 Claude 확장 설치 + 로그인(안내 페이지 또는 웹스토어) → `list_connected_browsers`에 브라우저가 2개로 보이는지 확인 → `/chrome`에서 Fjord 선택.
