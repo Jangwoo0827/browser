@@ -2,5 +2,5 @@
   "name": "Fjord",
   "startUrl": "chrome-extension://nnklkcbakchplbggofbfjijbmfepehnh/newtab.html",
   "profileName": "profile-app",
-  "extensions": ["extensions/sidebar", "extensions/newtab"]
+  "extensions": ["extensions/sidebar", "extensions/newtab", "extensions/workspaces"]
 }
