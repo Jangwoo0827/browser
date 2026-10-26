@@ -1,0 +1,6 @@
+{
+  "name": "Fjord",
+  "startUrl": "about:blank",
+  "profileName": "profile-app",
+  "extensions": ["extensions/sidebar"]
+}

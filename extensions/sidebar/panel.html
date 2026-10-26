@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sidebar</title>
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <aside id="rail">
+    <button id="toggle" class="rail-btn" title="사이드바 접기/펼치기" aria-label="사이드바 접기/펼치기">
+      <span class="ico">&#9776;</span><span class="label">접기</span>
+    </button>
+    <div id="items"></div>
+    <div class="spacer"></div>
+    <button id="settings" class="rail-btn" title="항목 추가/삭제 (설정)" aria-label="설정">
+      <span class="ico">&#9881;</span><span class="label">설정</span>
+    </button>
+  </aside>
+  <main id="view">
+    <header id="bar">
+      <span id="title">사이트를 선택하세요</span>
+      <button id="reload" title="새로고침">&#8635;</button>
+      <button id="external" title="새 탭에서 열기">&#8599;</button>
+    </header>
+    <div id="empty">왼쪽 아이콘을 눌러 사이트를 여세요.<br>항목은 &#9881; 설정에서 추가/삭제할 수 있어요.</div>
+    <iframe id="frame" hidden allow="clipboard-read; clipboard-write; fullscreen; autoplay; microphone; camera"></iframe>
+  </main>
+  <script src="store.js"></script>
+  <script src="panel.js"></script>
+</body>
+</html>

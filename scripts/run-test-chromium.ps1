@@ -14,6 +14,9 @@ param(
   [switch]$Update,
   [switch]$ResetProfile,
   [string]$Url = "https://chromewebstore.google.com/",
+  [string]$ProfileName = "profile",
+  [string[]]$ExtraArgs = @(),
+  [switch]$NoLaunch,
   # NOT under %LOCALAPPDATA%: when launched from the Claude desktop app (MSIX), AppData is virtualized
   # and Chromium's sandbox cannot access chrome.exe there.
   [string]$Root = (Join-Path $env:USERPROFILE "BrowserProject\chromium-snapshot")
@@ -21,7 +24,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $base = "https://storage.googleapis.com/chromium-browser-snapshots/Win_x64"
-$profileDir = Join-Path $Root "profile"
+$profileDir = Join-Path $Root $ProfileName
 $binDir = Join-Path $Root "bin"
 
 New-Item -ItemType Directory -Force $Root | Out-Null
@@ -59,9 +62,9 @@ if ($ResetProfile -and (Test-Path $profileDir)) {
 }
 
 Write-Host "Chromium r$Revision, profile: $profileDir"
-Start-Process $chromeExe -WorkingDirectory (Split-Path $chromeExe) -ArgumentList @(
+if ($NoLaunch) { return }
+Start-Process $chromeExe -WorkingDirectory (Split-Path $chromeExe) -ArgumentList (@(
   "--user-data-dir=`"$profileDir`"",
   "--no-first-run",
-  "--no-default-browser-check",
-  $Url
-)
+  "--no-default-browser-check"
+) + $ExtraArgs + @($Url))

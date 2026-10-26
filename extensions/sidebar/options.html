@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sidebar 설정</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <h1>사이드바 항목</h1>
+  <p class="hint">자주 쓰는 사이트/웹앱을 추가하세요. 아이콘을 누르면 사이드 패널에 열립니다.</p>
+
+  <ul id="list"></ul>
+
+  <form id="add">
+    <input id="name" placeholder="이름 (예: Claude)" maxlength="40" required>
+    <input id="url" placeholder="주소 (예: claude.ai)" required>
+    <button type="submit">추가</button>
+  </form>
+  <p id="msg" role="status"></p>
+
+  <p class="hint">
+    일부 사이트는 로그인 쿠키 정책이나 프레임 차단 때문에 패널 안에서 제대로 동작하지 않을 수 있어요.
+    그럴 땐 패널 위쪽 &#8599; 버튼으로 새 탭에서 여세요.
+  </p>
+  <button id="reset" class="link">기본 항목으로 되돌리기</button>
+
+  <script src="store.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>
