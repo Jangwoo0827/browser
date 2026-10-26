@@ -58,7 +58,7 @@
 - `browser.config.json`의 확장 경로를 `../extension/adblock`(저장소 밖 형제 폴더)로 지정. 내가 만든 `extensions/adblock`, `scripts/update-filters.mjs`, 변환기는 삭제(브랜치 `adblock` 히스토리에 남아 있음).
 - 알려진 문제: 저장소 밖 경로를 참조하므로 이 PC 외에서는 해당 폴더가 필요(배포 단계에서 서브모듈 또는 복사로 정리).
 
-## 확장 하나로 통합 (2026-10-27)
+## 확장 하나로 통합 ✅ (2026-10-27, 사용자 확인: 첫 탭, 사이드바, 워크스페이스, 광고 차단 정상)
 - 사용자 요청: 확장이 늘어나면 20개가 될 테니 하나로 합칠 것.
 - 결과: `extensions/fjord` 단일 MV3 확장(이름 Fjord, ID 고정 `nnklkcbakchplbggofbfjijbmfepehnh` — 이전 새 탭 확장과 같은 키라 스피드 다이얼 타일 유지). `modules/` 아래 sidebar / newtab / workspaces / adblock. service worker는 `background.js`(ES module) 하나가 각 모듈을 import.
 - 툴바 아이콘은 하나(클릭 → 사이드 패널). 워크스페이스와 광고 차단 UI는 사이드 패널의 왼쪽 아이콘 줄 아래쪽(🗂 워크스페이스, 🛡 광고 차단)에서 패널 안에 열림. 항목 설정은 ⚙.
@@ -66,3 +66,25 @@
 - 시작 탭 문제(ERR_BLOCKED_BY_CLIENT, 사용자 스크린샷): 첫 탭이 확장 로드 전에 열려서 생긴 경쟁 상태. 이제 `startUrl`은 `about:blank`이고 새 탭 모듈이 브라우저 세션당 한 번 시작 탭을 스피드 다이얼로 교체/새로고침.
 - 도구: `scripts/sync-adblock.mjs`(광고 차단 복사+경로 패치), `scripts/check-extension.mjs`(매니페스트/HTML 참조 파일 존재, JS 문법 점검 — 통과).
 - 알려진 문제: 이전 개별 확장에서 저장한 사이드바 항목/워크스페이스 설정은 새 확장 ID라 초기화됨. 실제 Chromium에서 로드 확인 전.
+
+## 프롬프트 6 — Claude 기본 통합 🔶 (구현 완료, 일부는 사용자 실행 필요)
+**1. 설치 안내 방식 조사**
+- 확장을 재배포하지 않는 후보: (a) 첫 실행 안내 페이지 + 웹스토어 링크 ← **채택**. (b) Chromium external extensions(레지스트리 `HKCU\Software\Google\Chrome\Extensions\<id>`): 시작 로그에 Claude ID 키가 보였지만 값(path)이 비어 있어 쓸 수 없고, 레지스트리 수정이 필요해 비채택. (c) 정책 `ExtensionInstallForcelist`: 정책 수정이 필요해 비채택.
+- 구현: `extensions/fjord/modules/claude` — 세션당 한 번, Claude 확장(`fcoeoabgfenejglbffodgkkbkcdhcgfn`)이 없으면 안내 탭(`welcome.html`)을 연다. `웹스토어에서 설치` 링크, 설치되면 자동 감지(`management` 권한), `나중에`/`다시 묻지 않기`.
+
+**2. 기본 고정**
+- 사이드바: 기본 항목 첫 번째가 Claude(claude.ai).
+- 툴바: 런처(`scripts/launch.ps1`)가 브라우저가 꺼져 있을 때 프로필 `Preferences`의 `extensions.pinned_extensions`에 Fjord와 Claude를 추가(`scripts/pin-extensions.mjs`). 임시 프로필로 단위 확인. 프로필이 아직 없으면 건너뜀. 다음 실행부터 적용.
+
+**3. Claude Code `/chrome` 연동 (Native Messaging)**
+- 확인한 것: Claude Code 문서 — 첫 `claude --chrome`/`/chrome` 때 호스트 설정을 설치하고, Windows는 브라우저별 레지스트리 키 `HKCU\Software\<브라우저>\NativeMessagingHosts\com.anthropic.claude_code_browser_extension`(기본값 = 매니페스트 JSON 경로). 다른 Chromium 브라우저는 자기 키를 쓰므로 이 스냅샷은 `HKCU\Software\Chromium\NativeMessagingHosts`.
+- 이 PC 현황: Chrome 키에는 Claude Desktop 호스트(`com.anthropic.claude_browser_extension`, 허용 출처에 Claude 확장 ID 포함)만 있고, Claude Code 호스트(`..._claude_code_browser_extension`)는 아직 없음(`~/.claude/chrome` 없음: `claude --chrome`를 아직 안 돌린 상태). Chromium 키는 비어 있음.
+- 스크립트: `scripts/install-native-hosts.cmd`(→ `.ps1`) — Chrome/Edge 키의 `com.anthropic.*` 등록을 Chromium 키로 미러링(`-DryRun`, `-Uninstall` 지원). Claude 앱(MSIX) 안에서는 레지스트리/파일 보기가 가상화돼 있어 **직접 더블클릭으로 실행**해야 함. 아직 실행하지 않음.
+
+**4. 동작 확인**
+- 정적 점검(`check-extension.mjs`, 스크립트 파싱, pin 스크립트 단위 테스트): 통과.
+- 사용자 확인 필요: 안내 페이지 동작, 툴바에 Claude 아이콘 고정, `/chrome` 연결.
+  1. 터미널에서 `claude --chrome`를 한 번 실행(Claude Code가 Chrome용 호스트를 등록).
+  2. `scripts\install-native-hosts.cmd` 더블클릭(미러링) 후 Fjord 재시작.
+  3. Claude Code에서 `/chrome` → Fjord가 연결되는지 확인하고 `docs/claude-extension-test.md` 14·15번에 기록.
+- 알려진 문제: Claude Desktop 호스트와 Claude Code 호스트가 같은 확장 ID를 허용해서 충돌하는 사례가 보고됨(anthropics/claude-code 이슈 20411). 연결이 안 되면 어느 호스트가 응답하는지 확인 필요.
