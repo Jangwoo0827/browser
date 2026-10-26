@@ -14,6 +14,13 @@
 
 이 PC는 디스크 여유 ~93GB / RAM 15.7GB라 Chromium **소스 빌드는 하지 않는다.** 공식 snapshot Chromium(약 1GB) + 번들 MV3 확장 + 작은 런처로 구현한다. 자세한 내용과 한계는 `docs/build-plan.md`. 소스 빌드는 확장으로 불가능한 항목이 생기고 외장 SSD/클라우드가 준비됐을 때만 재검토.
 
+## 확장 구조 (하나로 통합, 2026-10-27)
+
+기능을 늘려도 확장 프로그램이 늘어나지 않도록 **확장은 `extensions/fjord` 하나**만 둔다. 새 기능은 `modules/<이름>/`에 추가하고 `background.js`에서 import, `manifest.json`에 권한/리소스만 합친다.
+- 같은 service worker를 공유하므로 `chrome.runtime.onMessage` 핸들러는 **자기 메시지 타입만** 처리하고 나머지는 `return`(워크스페이스는 `ws:` 접두사). 동적 DNR 규칙 id 충돌을 피하려면 세션 규칙이나 별도 id 대역 사용.
+- 광고 차단은 별도 저장소(`../extension/adblock`)의 복사본이다: `node scripts/sync-adblock.mjs`로 동기화(경로 패치 포함). 수정은 원본 저장소에서.
+- 변경 후 `node scripts/check-extension.mjs`(파일 경로/문법 점검) 실행.
+
 ## 작업 규칙 (이 머신)
 
 - 이 폴더(`browser/`)는 자체 git 저장소이며 원격은 `github.com/Jangwoo0827/browser`. 상위 `VScode` 저장소에는 추적시키지 않는다.
@@ -29,6 +36,6 @@ CLAUDE.md
 docs/        progress.md, claude-extension-test.md, (upgrade.md 등)
 scripts/     실행/설치/패치 내보내기 스크립트
 patches/     git format-patch 결과물 (브랜치별)
-extensions/  번들 컴포넌트 확장 소스
+extensions/  번들 확장 소스 — 확장 하나(`extensions/fjord`)에 모듈로 통합: modules/{sidebar,newtab,workspaces,adblock}
 logs/        빌드/페치 로그 (gitignore)
 ```

@@ -75,9 +75,8 @@ def write(path, data):
 
 def main():
     pngs = {s: png(s) for s in (16, 32, 48, 128, 256)}
-    for ext in ("sidebar", "newtab", "workspaces"):
-        for s in (16, 32, 48, 128):
-            write(os.path.join(ROOT, "extensions", ext, "icons", f"icon{s}.png"), pngs[s])
+    for s in (16, 32, 48, 128):
+        write(os.path.join(ROOT, "extensions", "fjord", "icons", f"icon{s}.png"), pngs[s])
     write(os.path.join(ROOT, "assets", "icon.png"), pngs[256])
 
     sizes = (16, 32, 48, 256)

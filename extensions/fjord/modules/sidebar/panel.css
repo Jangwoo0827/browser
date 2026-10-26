@@ -42,7 +42,9 @@ body {
   overflow-x: hidden;
 }
 body.collapsed #rail { width: 48px; align-items: center; }
-#items { display: flex; flex-direction: column; gap: 2px; }
+#items, #builtins { display: flex; flex-direction: column; gap: 2px; }
+#builtins { padding-top: 6px; margin-top: 6px; border-top: 1px solid var(--line); }
+body.collapsed #items, body.collapsed #builtins { align-items: center; }
 .spacer { flex: 1; }
 
 .rail-btn {

@@ -179,19 +179,21 @@ function deleteWorkspace(id) {
 }
 
 // ---- events --------------------------------------------------------------
+// Other modules share this service worker's onMessage: only answer our own "ws:" messages.
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (typeof msg?.type !== "string" || !msg.type.startsWith("ws:")) return;
   (async () => {
     switch (msg.type) {
-      case "state":
+      case "ws:state":
         return listState(msg.windowId);
-      case "switch":
+      case "ws:switch":
         await switchTo(msg.windowId, msg.id);
         return {};
-      case "add":
+      case "ws:add":
         return addWorkspace(msg.name);
-      case "rename":
+      case "ws:rename":
         return renameWorkspace(msg.id, msg.name);
-      case "delete":
+      case "ws:delete":
         return deleteWorkspace(msg.id);
     }
     return {};

@@ -57,3 +57,12 @@
 - 사용자의 기존 확장 `VScode/extension/adblock`(Universal Ad Skipper & Blocker 2.0.0, github.com/Jangwoo0827/adblock)이 DNR + 요소 숨김 + 스크립틀릿 + YouTube 광고 건너뛰기까지 포함해 더 완성도가 높아서 이걸 번들하기로 함.
 - `browser.config.json`의 확장 경로를 `../extension/adblock`(저장소 밖 형제 폴더)로 지정. 내가 만든 `extensions/adblock`, `scripts/update-filters.mjs`, 변환기는 삭제(브랜치 `adblock` 히스토리에 남아 있음).
 - 알려진 문제: 저장소 밖 경로를 참조하므로 이 PC 외에서는 해당 폴더가 필요(배포 단계에서 서브모듈 또는 복사로 정리).
+
+## 확장 하나로 통합 (2026-10-27)
+- 사용자 요청: 확장이 늘어나면 20개가 될 테니 하나로 합칠 것.
+- 결과: `extensions/fjord` 단일 MV3 확장(이름 Fjord, ID 고정 `nnklkcbakchplbggofbfjijbmfepehnh` — 이전 새 탭 확장과 같은 키라 스피드 다이얼 타일 유지). `modules/` 아래 sidebar / newtab / workspaces / adblock. service worker는 `background.js`(ES module) 하나가 각 모듈을 import.
+- 툴바 아이콘은 하나(클릭 → 사이드 패널). 워크스페이스와 광고 차단 UI는 사이드 패널의 왼쪽 아이콘 줄 아래쪽(🗂 워크스페이스, 🛡 광고 차단)에서 패널 안에 열림. 항목 설정은 ⚙.
+- 충돌 방지: 워크스페이스 메시지는 `ws:` 접두사만 처리, 사이드바의 프레임 헤더 제거 규칙은 세션 규칙(id 900001)으로 이동(광고 차단이 동적 규칙 id를 관리하므로).
+- 시작 탭 문제(ERR_BLOCKED_BY_CLIENT, 사용자 스크린샷): 첫 탭이 확장 로드 전에 열려서 생긴 경쟁 상태. 이제 `startUrl`은 `about:blank`이고 새 탭 모듈이 브라우저 세션당 한 번 시작 탭을 스피드 다이얼로 교체/새로고침.
+- 도구: `scripts/sync-adblock.mjs`(광고 차단 복사+경로 패치), `scripts/check-extension.mjs`(매니페스트/HTML 참조 파일 존재, JS 문법 점검 — 통과).
+- 알려진 문제: 이전 개별 확장에서 저장한 사이드바 항목/워크스페이스 설정은 새 확장 ID라 초기화됨. 실제 Chromium에서 로드 확인 전.

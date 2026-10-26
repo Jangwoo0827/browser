@@ -1,5 +1,14 @@
+import { Store } from "./store.js";
+
 const $ = (id) => document.getElementById(id);
 let state = { items: [], ui: { collapsed: true, activeId: null } };
+
+// Built-in modules of this extension, shown as extension pages inside the panel.
+const BUILTINS = [
+  { id: "@workspaces", name: "워크스페이스", glyph: "🗂", page: "../workspaces/popup.html" },
+  { id: "@adblock", name: "광고 차단", glyph: "🛡", page: "../adblock/popup.html" },
+];
+const builtin = (id) => BUILTINS.find((b) => b.id === id);
 
 function avatar(name) {
   const hue = [...name].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
@@ -23,43 +32,57 @@ function icon(item) {
   return wrap;
 }
 
+function railButton(id, title, iconEl, label) {
+  const b = document.createElement("button");
+  b.className = "rail-btn" + (id === state.ui.activeId ? " active" : "");
+  b.title = title;
+  b.append(iconEl);
+  const text = document.createElement("span");
+  text.className = "label";
+  text.textContent = label;
+  b.append(text);
+  b.onclick = () => open(id);
+  return b;
+}
+
 function render() {
   document.body.classList.toggle("collapsed", state.ui.collapsed);
   $("toggle").querySelector(".ico").innerHTML = state.ui.collapsed ? "&#9776;" : "&#171;";
 
-  const box = $("items");
-  box.replaceChildren();
-  for (const item of state.items) {
-    const b = document.createElement("button");
-    b.className = "rail-btn" + (item.id === state.ui.activeId ? " active" : "");
-    b.title = `${item.name}\n${item.url}`;
-    b.append(icon(item));
-    const label = document.createElement("span");
-    label.className = "label";
-    label.textContent = item.name;
-    b.append(label);
-    b.onclick = () => open(item.id);
-    box.append(b);
-  }
+  $("items").replaceChildren(
+    ...state.items.map((item) => railButton(item.id, `${item.name}\n${item.url}`, icon(item), item.name))
+  );
+  $("builtins").replaceChildren(
+    ...BUILTINS.map((b) => {
+      const g = Object.assign(document.createElement("span"), { className: "ico", textContent: b.glyph });
+      return railButton(b.id, b.name, g, b.name);
+    })
+  );
   showActive();
 }
 
 function showActive() {
-  const item = state.items.find((i) => i.id === state.ui.activeId);
   const frame = $("frame");
-  if (!item) {
+  const b = builtin(state.ui.activeId);
+  const item = state.items.find((i) => i.id === state.ui.activeId);
+  const target = b ? { name: b.name, url: new URL(b.page, location.href).href, external: false } : item && { ...item, external: true };
+
+  if (!target) {
     frame.hidden = true;
     frame.removeAttribute("src");
+    delete frame.dataset.url;
     $("empty").hidden = false;
     $("title").textContent = "사이트를 선택하세요";
+    $("external").hidden = true;
     return;
   }
   $("empty").hidden = true;
   frame.hidden = false;
-  $("title").textContent = item.name;
-  if (frame.dataset.url !== item.url) {
-    frame.dataset.url = item.url;
-    frame.src = item.url;
+  $("external").hidden = !target.external;
+  $("title").textContent = target.name;
+  if (frame.dataset.url !== target.url) {
+    frame.dataset.url = target.url;
+    frame.src = target.url;
   }
 }
 
@@ -68,6 +91,8 @@ async function open(id) {
   await Store.saveUi(state.ui);
   render();
 }
+
+const validActive = (s) => !s.ui.activeId || builtin(s.ui.activeId) || s.items.some((i) => i.id === s.ui.activeId);
 
 $("toggle").onclick = async () => {
   state.ui.collapsed = !state.ui.collapsed;
@@ -84,17 +109,16 @@ $("external").onclick = () => {
   if (item) chrome.tabs.create({ url: item.url });
 };
 
-chrome.storage.onChanged.addListener(async (changes, area) => {
+chrome.storage.onChanged.addListener(async (_changes, area) => {
   if (area !== "local") return;
   const next = await Store.load();
-  // keep the loaded page when only the item list changed and the active one is still there
-  if (!next.items.some((i) => i.id === next.ui.activeId)) next.ui.activeId = null;
+  if (!validActive(next)) next.ui.activeId = null;
   state = next;
   render();
 });
 
 (async () => {
   state = await Store.load();
-  if (!state.items.some((i) => i.id === state.ui.activeId)) state.ui.activeId = null;
+  if (!validActive(state)) state.ui.activeId = null;
   render();
 })();

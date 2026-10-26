@@ -1,6 +1,6 @@
 {
   "name": "Fjord",
-  "startUrl": "chrome-extension://nnklkcbakchplbggofbfjijbmfepehnh/newtab.html",
+  "startUrl": "about:blank",
   "profileName": "profile-app",
-  "extensions": ["extensions/sidebar", "extensions/newtab", "extensions/workspaces", "../extension/adblock"]
+  "extensions": ["extensions/fjord"]
 }
