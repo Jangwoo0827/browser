@@ -20,6 +20,17 @@
     <button id="findClose" class="mini" title="닫기 (Esc)" aria-label="닫기"></button>
   </div>
 
+  <!-- text prompt -->
+  <form id="prompt" class="card prompt" hidden>
+    <h2 id="promptTitle" class="fj-title-section"></h2>
+    <input id="promptInput" class="fj-field" maxlength="24" placeholder="이름" autocomplete="off" required>
+    <p id="promptMsg" class="fj-caption" role="status"></p>
+    <div class="row">
+      <button type="button" id="promptCancel" class="fj-btn">취소</button>
+      <button type="submit" class="fj-btn fj-btn--primary">확인</button>
+    </div>
+  </form>
+
   <!-- downloads -->
   <div id="downloads" class="card" hidden>
     <header><h2 class="fj-title-section">다운로드</h2><button id="dlClear" class="fj-btn fj-btn--ghost">목록 지우기</button></header>

@@ -21,6 +21,7 @@ the extension build (`extensions/fjord`, `scripts/launch.ps1`), which keeps work
 - Address bar: suggestions from pinned sites + history (`Store.suggest`), arrow keys + Enter, "search" row.
 - History (`Ctrl+H` → `fjord://app/history.html`, search + clear), saved with the state (max 5000 URLs).
 - Find in page (`Ctrl+F`), zoom (`Ctrl+=`/`-`/`0`, badge in the toolbar), downloads (auto-save to Downloads, `Ctrl+J` panel, open / show in folder / cancel, native notification), page context menu (links, images, selection, editable fields, view source, inspect).
+- **Rule**: anything that must appear above the page (menus, prompts, dropdowns, toasts) is drawn by the overlay view. A `<dialog>`/popup inside the bottom UI view is hidden behind the page view while a modal one still disables the rail and tab strip.
 - Known quirk: Chromium searches the focused frame, so `find` focuses the page for the request and hands focus back to the find box when results arrive (`found-in-page`); the request is retried once when no answer comes.
 
 ## Run / test
