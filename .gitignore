@@ -1,5 +1,5 @@
 logs/
-src/
+/src/
 depot_tools/
 out/
 .chromium/

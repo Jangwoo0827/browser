@@ -6,7 +6,7 @@ let kind = null;
 
 function showOnly(k) {
   kind = k;
-  for (const id of ["suggest", "find", "downloads", "prompt", "tabsearch"]) $(id).hidden = id !== k;
+  for (const id of ["suggest", "find", "downloads", "prompt", "tabsearch", "bookmark"]) $(id).hidden = id !== k;
 }
 
 // ---- suggestions ----
@@ -22,7 +22,7 @@ function renderSuggest({ items, index }) {
         const img = document.createElement("img");
         img.alt = "";
         try { img.src = new URL("/favicon.ico", item.url).href; } catch {}
-        img.onerror = () => { ico.innerHTML = icon(item.type === "pin" ? "star" : "history"); };
+        img.onerror = () => { ico.innerHTML = icon(item.type === "pin" || item.type === "bookmark" ? "star" : "history"); };
         ico.append(img);
       }
       const t = document.createElement("span");
@@ -80,6 +80,15 @@ function renderDownloads(list) {
   );
 }
 $("dlClear").onclick = () => cmd("dlClear");
+
+// ---- bookmark edit ----
+let bmCurrent = null;
+$("bmRemove").onclick = async () => { await cmd("bookmarkRemove", bmCurrent.id); cmd("overlayHide"); };
+$("bookmark").onsubmit = async (e) => {
+  e.preventDefault();
+  await cmd("bookmarkUpdate", { id: bmCurrent.id, title: $("bmName").value, folder: $("bmFolder").value });
+  cmd("overlayHide");
+};
 
 // ---- tab search ----
 let tsAll = [];
@@ -144,7 +153,15 @@ window.fjord.on("show", ({ kind: k, payload }) => {
   if (k === "suggest") renderSuggest(payload);
   else if (k === "find") { $("findCount").textContent = ""; $("findInput").focus(); $("findInput").select(); }
   else if (k === "downloads") renderDownloads(payload.downloads);
-  else if (k === "tabsearch") {
+  else if (k === "bookmark") {
+    bmCurrent = payload.bookmark;
+    $("bmName").value = bmCurrent.title;
+    const opts = [["bar", "북마크 바"], ["other", "기타 북마크"], ...payload.folders.map((f) => [f.id, f.name])];
+    $("bmFolder").replaceChildren(...opts.map(([v, n]) => Object.assign(document.createElement("option"), { value: v, textContent: n })));
+    $("bmFolder").value = bmCurrent.folder;
+    $("bmName").focus();
+    $("bmName").select();
+  } else if (k === "tabsearch") {
     tsAll = payload.tabs;
     $("tsInput").value = "";
     tsFilter();
