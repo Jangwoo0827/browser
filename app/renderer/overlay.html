@@ -20,6 +20,17 @@
     <button id="findClose" class="mini" title="닫기 (Esc)" aria-label="닫기"></button>
   </div>
 
+  <!-- bookmark edit -->
+  <form id="bookmark" class="card bmedit" hidden>
+    <h2 class="fj-title-section">북마크</h2>
+    <label class="fj-caption">이름<input id="bmName" class="fj-field" autocomplete="off"></label>
+    <label class="fj-caption">폴더<select id="bmFolder" class="fj-field"></select></label>
+    <div class="row">
+      <button type="button" id="bmRemove" class="fj-btn">삭제</button>
+      <button type="submit" class="fj-btn fj-btn--primary">완료</button>
+    </div>
+  </form>
+
   <!-- tab search -->
   <div id="tabsearch" class="card tabsearch" hidden>
     <input id="tsInput" class="fj-field" placeholder="열려 있는 탭 검색 (제목 또는 주소)" spellcheck="false" autocomplete="off">

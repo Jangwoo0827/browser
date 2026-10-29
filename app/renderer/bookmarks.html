@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>북마크</title>
+  <link rel="stylesheet" href="fjord://shared/tokens.css">
+  <link rel="stylesheet" href="fjord://shared/base.css">
+  <link rel="stylesheet" href="bookmarks.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1 class="fj-title-page">북마크</h1>
+      <input id="filter" class="fj-field" placeholder="북마크 검색" spellcheck="false">
+    </header>
+    <div class="tools">
+      <form id="folderForm"><input id="folderName" class="fj-field" placeholder="새 폴더 이름" maxlength="40"><button class="fj-btn" type="submit">폴더 추가</button></form>
+      <span class="grow"></span>
+      <button id="import" class="fj-btn">가져오기 (HTML)</button>
+      <button id="export" class="fj-btn">내보내기 (HTML)</button>
+    </div>
+    <p id="msg" class="fj-caption" role="status"></p>
+    <div id="list"></div>
+  </main>
+  <script type="module" src="bookmarks.js"></script>
+</body>
+</html>

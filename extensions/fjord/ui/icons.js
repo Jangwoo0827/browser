@@ -24,6 +24,9 @@ const PATHS = {
   pin: '<path d="M12 17v5M9 3h6l-1 6 3 3v2H7v-2l3-3z"/>',
   volume: '<path d="M11 5 6 9H3v6h3l5 4zM15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>',
   volumeOff: '<path d="M11 5 6 9H3v6h3l5 4zM22 9l-6 6M16 9l6 6"/>',
+  folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  trash: '<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>',
+  chevronDown: '<path d="m6 9 6 6 6-6"/>',
   arrowLeft: '<path d="M19 12H5M11 6l-6 6 6 6"/>',
   arrowRight: '<path d="M5 12h14M13 6l6 6-6 6"/>',
 };

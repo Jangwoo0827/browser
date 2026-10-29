@@ -133,8 +133,44 @@ function renderToolbar() {
   if (document.activeElement !== input) input.value = !tab || tab.isNewTab ? "" : tab.url;
 }
 
+function renderBar() {
+  const bar = state.bookmarkBar || { visible: false, folders: [], items: [] };
+  document.body.classList.toggle("has-bar", bar.visible);
+  $("starBtn").classList.toggle("on", !!state.activeBookmark);
+  $("starBtn").title = state.activeBookmark ? "북마크 편집 (Ctrl+D)" : "이 페이지를 북마크 (Ctrl+D)";
+  if (!bar.visible) return;
+  const chips = [];
+  for (const f of bar.folders) {
+    const b = document.createElement("button");
+    b.className = "bm folder";
+    b.title = f.name;
+    b.innerHTML = icon("folder") + "<span></span>" + icon("chevronDown");
+    b.querySelector("span").textContent = f.name;
+    b.onclick = () => cmd("folderMenu", f.id);
+    chips.push(b);
+  }
+  for (const item of bar.items) {
+    const b = document.createElement("button");
+    b.className = "bm link";
+    b.title = item.title + "\n" + item.url;
+    const img = document.createElement("img");
+    img.alt = "";
+    try { img.src = new URL("/favicon.ico", item.url).href; } catch {}
+    img.onerror = () => img.replaceWith(Object.assign(document.createElement("span"), { innerHTML: "" }));
+    const t = document.createElement("span");
+    t.textContent = item.title;
+    b.append(img, t);
+    b.onclick = (e) => cmd(e.ctrlKey || e.shiftKey ? "newTab" : "navigate", e.ctrlKey || e.shiftKey ? item.url : { id: state.activeTab, input: item.url });
+    b.onauxclick = (e) => { if (e.button === 1) cmd("newTab", item.url); };
+    b.oncontextmenu = (e) => { e.preventDefault(); cmd("bookmarkMenu", item.id); };
+    chips.push(b);
+  }
+  $("bmBar").replaceChildren(...chips);
+}
+
 function render(s) {
   state = s;
+  renderBar();
   renderRail();
   renderTabs();
   renderToolbar();
@@ -162,6 +198,8 @@ $("addr").onsubmit = (e) => {
   if (text.trim()) cmd("navigate", { id: state.activeTab, input: text });
   input.blur();
 };
+$("starBtn").innerHTML = icon("star");
+$("starBtn").onclick = () => cmd("bookmarkEditShow");
 $("findBtn").innerHTML = icon("search");
 $("histBtn").innerHTML = icon("history");
 $("dlBtn").insertAdjacentHTML("afterbegin", icon("download"));

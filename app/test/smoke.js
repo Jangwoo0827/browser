@@ -213,6 +213,57 @@ app.whenReady().then(async () => {
     await shot(f.overlay().webContents, "app-tabsearch.png");
     f.commands.overlayHide();
 
+    // ---- M1b: bookmarks ----
+    f.commands.newTab(base + "/page?bm");
+    await waitFor(() => f.serialize().tabs.some((t) => t.url.endsWith("?bm") && t.title === "Needle Page"), 8000);
+    const topBefore = f.views.get(f.attached()).getBounds().y;
+    const barVisible = f.serialize().bookmarkBar.visible;
+    check("bookmark bar is visible by default and the page starts below it", barVisible && topBefore === 38 + 42 + 34, topBefore);
+
+    f.handleShortcut({ type: "keyDown", key: "d", control: true });
+    await sleep(500);
+    let st = f.serialize();
+    check("Ctrl+D bookmarks the page and opens the edit popup", st.activeBookmark && f.overlayKind() === "bookmark" && st.bookmarkBar.items.some((b) => b.url.endsWith("?bm")));
+    await shot(f.overlay().webContents, "app-bookmark.png");
+    const bmId = st.activeBookmark;
+    f.commands.bookmarkUpdate({ id: bmId, title: "내 북마크", folder: "bar" });
+    f.commands.overlayHide();
+    check("renaming a bookmark", f.store.data.bookmarks.find((b) => b.id === bmId).title === "내 북마크");
+
+    const folder = f.commands.folderAdd({ name: "자료", parent: "bar" });
+    f.commands.bookmarkAdd({ title: "예제", url: "https://example.com/", folder: folder.id });
+    f.commands.bookmarkAdd({ title: "기타", url: "https://example.org/", folder: "other" });
+    await sleep(300);
+    st = f.serialize();
+    check("bar shows loose bookmarks and folders", st.bookmarkBar.folders.length === 1 && st.bookmarkBar.items.length >= 1);
+    check("suggestions include bookmarks", f.commands.suggest("내 북마크").some((i) => i.type === "bookmark"));
+
+    // a real mouse click on the bookmark chip navigates the current tab
+    await sleep(500);
+    const chip = await rectOf(".bm.link", 0);
+    await click(chip.x, chip.y);
+    const nav = await waitFor(() => f.views.get(f.attached()).webContents.getURL().endsWith("?bm") || f.views.get(f.attached()).webContents.getURL().endsWith("/page"), 4000);
+    check("clicking a bookmark chip opens it", !!nav, f.views.get(f.attached()).webContents.getURL());
+
+    const exported = f.commands.bookmarksExport(path.join(process.env.FJORD_DOWNLOADS, "bm-test.html"));
+    const html = fs.readFileSync(exported.path, "utf8");
+    check("HTML export has the bookmarks and folders", html.includes("NETSCAPE-Bookmark-file-1") && html.includes("내 북마크") && html.includes("<H3>자료</H3>") && html.includes("https://example.org/"));
+    const { Store: StoreClass } = require("../src/store");
+    const fresh = new StoreClass(path.join(os.tmpdir(), "bm-import-" + Date.now() + ".json"));
+    const imported = fresh.importHtml(html);
+    check("HTML import restores them (links, folders, bar/other)", imported.added === f.store.data.bookmarks.length && fresh.data.folders.some((x) => x.name === "자료") && fresh.data.bookmarks.some((b) => b.folder === "other") && fresh.data.bookmarks.some((b) => b.folder === "bar"), { added: imported.added, expected: f.store.data.bookmarks.length });
+
+    f.commands.folderRemove(folder.id);
+    check("removing a folder keeps its bookmarks (moved to other)", f.store.data.bookmarks.find((b) => b.url === "https://example.com/").folder === "other");
+    f.handleShortcut({ type: "keyDown", key: "B", control: true, shift: true });
+    await sleep(500);
+    check("Ctrl+Shift+B hides the bar and the page moves up", f.serialize().bookmarkBar.visible === false && f.views.get(f.attached()).getBounds().y === 38 + 42, f.views.get(f.attached()).getBounds().y);
+    f.handleShortcut({ type: "keyDown", key: "B", control: true, shift: true });
+    await sleep(300);
+    f.commands.openPage("bookmarks");
+    const bmPage = await waitFor(() => f.serialize().tabs.find((t) => t.url === "fjord://app/bookmarks.html" && t.title === "북마크"));
+    check("bookmark manager page opens", !!bmPage);
+
     // workspace prompt (drawn by the overlay, not a modal dialog hidden behind the page)
     f.commands.promptShow({ mode: "add" });
     await sleep(500);

@@ -6,10 +6,11 @@ body {
   grid-template-rows: 38px 42px 1fr;
   background: var(--fj-color-bg-rail);
 }
+body.has-bar { grid-template-rows: 38px 42px 34px 1fr; }
 
 /* ---- rail ---- */
 #rail {
-  grid-row: 1 / 4;
+  grid-row: 1 / -1;
   display: flex; flex-direction: column; align-items: center; gap: var(--fj-space-1);
   padding: var(--fj-space-3);
   background: var(--fj-color-bg-rail);
@@ -97,6 +98,16 @@ body {
 #addrInput:hover { background: var(--fj-color-bg-surface-hover); }
 #addrInput:focus { background: var(--fj-color-bg-surface); border-color: var(--fj-color-accent-primary); box-shadow: 0 0 0 3px var(--fj-color-accent-soft); }
 
+#top { display: contents; }
+#bmBar { grid-column: 2; grid-row: 3; display: none; align-items: center; gap: var(--fj-space-1); padding: 0 var(--fj-space-4); background: var(--fj-color-bg-surface); border-bottom: 1px solid var(--fj-color-border-subtle); overflow: hidden; }
+body.has-bar #bmBar { display: flex; }
+.bm { flex: none; display: inline-flex; align-items: center; gap: var(--fj-space-3); max-width: 170px; height: 26px; padding: 0 var(--fj-space-4); border: 0; border-radius: var(--fj-radius-sm); background: transparent; color: var(--fj-color-text-secondary); font: 500 12.5px/18px var(--fj-font); cursor: pointer; -webkit-app-region: no-drag; }
+.bm:hover { background: var(--fj-color-bg-surface-hover); color: var(--fj-color-text-primary); }
+.bm img { width: 14px; height: 14px; border-radius: 3px; flex: none; }
+.bm .fj-icon { width: 14px; height: 14px; flex: none; }
+.bm span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+#starBtn.on { color: var(--fj-color-accent-primary); }
+#starBtn.on .fj-icon { fill: currentColor; }
 .zoom-badge { flex: none; height: 24px; padding: 0 var(--fj-space-4); border: 1px solid var(--fj-color-border-strong); border-radius: var(--fj-radius-full); background: transparent; color: var(--fj-color-text-secondary); font: 500 12px/16px var(--fj-font); cursor: pointer; -webkit-app-region: no-drag; }
 .zoom-badge:hover { background: var(--fj-color-bg-surface-hover); }
 #dlBtn { position: relative; }
