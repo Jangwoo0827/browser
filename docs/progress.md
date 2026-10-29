@@ -109,3 +109,10 @@
 - 확인: UI Automation으로 작업표시줄 버튼이 `Fjord - 1개의 실행 중인 창`, `Appid: Fjord.Browser`로 표시, 창 제목 `새 탭 - Fjord`, 프로세스 `fjord.exe`. `exe` 아이콘은 추출해서 새 아이콘 확인.
 - 한계: 현재 아이콘은 내가 만든 임시 아이콘(UI 디자인 단계에서 교체 예정). 창에 미리 쓰인 값을 다시 읽을 수는 없음(셸 제약) → 감시 프로세스가 창 핸들마다 한 번 기록. 브라우저가 켜져 있는 동안은 exe/팩을 다시 쓸 수 없어 런처가 건너뜀(콜드 스타트에만 적용).
 - 런처 개선: `logs/launch.log`에 실행 기록(숨김 실행 실패가 안 보이던 문제), 실행 중 판정을 프로세스 이름 `chrome.exe`/`fjord.exe` 모두로.
+
+## UI 디자인 시스템 (2026-10-29) 🔶 — 코드 완료, Figma 일부, 실제 브라우저 확인 대기
+- 벤치마크 조사(Opera/Arc/Vivaldi/Edge/Brave/Zen; 자료가 얇아 방향 참고용) → `docs/design/README.md`에 채택/회피 정리. 핵심: 왼쪽 레일 + 사이드 패널, 한 화면에 한 개념, 모션 ≤120ms(감소 모션 존중), **스피드 다이얼이 워크스페이스를 따라감**.
+- Figma(`fWkyK4QNyMaEM4K65JwHf2`): 토큰(원시 28 + 의미 색 18×라이트/다크 + space/radius/size), 텍스트 스타일 8개, 컴포넌트 6종(RailButton·SpeedDialTile·WorkspaceRow·ToggleRow·Button·SearchField), 화면 2개(사이드 패널 접힘/펼침). **Figma MCP 호출 한도(Starter)에 걸려** 워크스페이스/광고 차단/새 탭/다크 화면은 Figma에 못 만들고 코드로 구현. Starter는 컬렉션당 모드 1개라 라이트/다크를 별도 컬렉션으로 분리.
+- 코드: `extensions/fjord/ui/{tokens.css,base.css,icons.js}` 공용 토큰/베이스/아이콘, 사이드 패널(레일 48/168px, SVG 아이콘, 활성 상태), 워크스페이스 페이지, 새 탭(시계 + 워크스페이스 칩 + 칩별 스피드 다이얼 + 검색), 옵션, Claude 설치 페이지를 토큰 기반으로 재작성. 광고 차단 팝업은 동기화 스크립트가 토큰으로 테마 덮어쓰기(영문 문구는 원본 그대로).
+- 도구: `scripts/preview-server.mjs`(chrome.* 스텁을 주입해 일반 브라우저에서 확장 페이지 미리보기). 내장 브라우저로 새 탭(라이트), 워크스페이스 페이지(라이트), 광고 차단+펼친 레일(다크) 스크린샷 확인.
+- 남은 일: Fjord에서 실제 확인, Figma 나머지 화면(한도 해제 후), 앱 아이콘 교체, 광고 차단 팝업 한글화.

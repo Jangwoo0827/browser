@@ -3,25 +3,36 @@ import { Store } from "./store.js";
 const $ = (id) => document.getElementById(id);
 let items = [];
 
+function mini(label, title, fn, disabled) {
+  const b = document.createElement("button");
+  b.className = "fj-btn mini";
+  b.textContent = label;
+  b.title = title;
+  b.disabled = !!disabled;
+  b.onclick = fn;
+  return b;
+}
+
 function row(item, index) {
   const li = document.createElement("li");
+  li.className = "fj-row";
   const name = Object.assign(document.createElement("span"), { className: "name", textContent: item.name });
   const url = Object.assign(document.createElement("span"), { className: "url", textContent: item.url });
-
-  const up = Object.assign(document.createElement("button"), { textContent: "↑", title: "위로" });
-  up.disabled = index === 0;
-  up.onclick = () => move(index, -1);
-  const down = Object.assign(document.createElement("button"), { textContent: "↓", title: "아래로" });
-  down.disabled = index === items.length - 1;
-  down.onclick = () => move(index, 1);
-  const del = Object.assign(document.createElement("button"), { textContent: "삭제" });
-  del.onclick = () => remove(index);
-
-  li.append(name, url, up, down, del);
+  li.append(
+    name,
+    url,
+    mini("↑", "위로", () => move(index, -1), index === 0),
+    mini("↓", "아래로", () => move(index, 1), index === items.length - 1),
+    mini("삭제", "삭제", () => remove(index))
+  );
   return li;
 }
 
 function render() {
+  if (!items.length) {
+    $("list").replaceChildren(Object.assign(document.createElement("li"), { className: "empty", textContent: "항목이 없어요" }));
+    return;
+  }
   $("list").replaceChildren(...items.map(row));
 }
 

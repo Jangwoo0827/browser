@@ -1,44 +1,52 @@
 import { Store } from "./store.js";
+import { icon } from "../../ui/icons.js";
 
 const $ = (id) => document.getElementById(id);
 let state = { items: [], ui: { collapsed: true, activeId: null } };
 
 // Built-in modules of this extension, shown as extension pages inside the panel.
 const BUILTINS = [
-  { id: "@workspaces", name: "워크스페이스", glyph: "🗂", page: "../workspaces/popup.html" },
-  { id: "@adblock", name: "광고 차단", glyph: "🛡", page: "../adblock/popup.html" },
+  { id: "@workspaces", name: "워크스페이스", icon: "layers", page: "../workspaces/popup.html" },
+  { id: "@adblock", name: "광고 차단", icon: "shield", page: "../adblock/popup.html" },
 ];
 const builtin = (id) => BUILTINS.find((b) => b.id === id);
 
-function avatar(name) {
+// Letter avatar (also the favicon fallback): colour derived from the name.
+function glyph(name) {
   const hue = [...name].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
   const el = document.createElement("span");
-  el.className = "avatar";
-  el.style.background = `hsl(${hue} 55% 45%)`;
+  el.className = "fj-glyph";
+  el.style.background = `hsl(${hue} 52% 42%)`;
   el.textContent = (name.trim()[0] || "?").toUpperCase();
   return el;
 }
 
-// Site's own /favicon.ico (no third-party lookup); falls back to a coloured letter.
-function icon(item) {
+// Site's own /favicon.ico (no third-party lookup); falls back to the letter avatar.
+function siteGlyph(item) {
   const wrap = document.createElement("span");
-  wrap.className = "ico";
+  wrap.className = "rail-glyph";
   const img = document.createElement("img");
-  img.className = "fav";
   img.alt = "";
   img.src = new URL("/favicon.ico", item.url).href;
-  img.onerror = () => img.replaceWith(avatar(item.name));
+  img.onerror = () => img.replaceWith(glyph(item.name));
   wrap.append(img);
   return wrap;
 }
 
-function railButton(id, title, iconEl, label) {
+function iconGlyph(name) {
+  const wrap = document.createElement("span");
+  wrap.className = "rail-glyph";
+  wrap.innerHTML = icon(name);
+  return wrap;
+}
+
+function railButton(id, title, glyphEl, label) {
   const b = document.createElement("button");
   b.className = "rail-btn" + (id === state.ui.activeId ? " active" : "");
   b.title = title;
-  b.append(iconEl);
+  b.append(glyphEl);
   const text = document.createElement("span");
-  text.className = "label";
+  text.className = "rail-label";
   text.textContent = label;
   b.append(text);
   b.onclick = () => open(id);
@@ -47,17 +55,15 @@ function railButton(id, title, iconEl, label) {
 
 function render() {
   document.body.classList.toggle("collapsed", state.ui.collapsed);
-  $("toggle").querySelector(".ico").innerHTML = state.ui.collapsed ? "&#9776;" : "&#171;";
+  $("toggleIcon").innerHTML = icon(state.ui.collapsed ? "menu" : "collapse");
+  $("settingsIcon").innerHTML = icon("sliders");
+  $("reload").innerHTML = icon("reload");
+  $("external").innerHTML = icon("external");
 
   $("items").replaceChildren(
-    ...state.items.map((item) => railButton(item.id, `${item.name}\n${item.url}`, icon(item), item.name))
+    ...state.items.map((item) => railButton(item.id, `${item.name}\n${item.url}`, siteGlyph(item), item.name))
   );
-  $("builtins").replaceChildren(
-    ...BUILTINS.map((b) => {
-      const g = Object.assign(document.createElement("span"), { className: "ico", textContent: b.glyph });
-      return railButton(b.id, b.name, g, b.name);
-    })
-  );
+  $("builtins").replaceChildren(...BUILTINS.map((b) => railButton(b.id, b.name, iconGlyph(b.icon), b.name)));
   showActive();
 }
 

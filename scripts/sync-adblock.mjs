@@ -30,5 +30,18 @@ async function patch(file, replacements) {
 await patch("background.js", [["js: ['scriptlets.js']", "js: ['modules/adblock/scriptlets.js']"]]);
 // shared icons live at the extension root
 await patch("popup.html", [['src="icons/icon48.png"', 'src="../../icons/icon48.png"']]);
+// theme it with the Fjord design tokens (their own variables, our values) so it matches the rest of the panel
+const THEME = `  <link rel="stylesheet" href="../../ui/tokens.css">
+  <style>
+    :root {
+      --bg: var(--fj-color-bg-surface); --fg: var(--fj-color-text-primary); --muted: var(--fj-color-text-muted);
+      --card: var(--fj-color-bg-canvas); --line: var(--fj-color-border-subtle);
+      --accent: var(--fj-color-accent-primary); --accent-2: var(--fj-color-accent-secondary); --accent-soft: var(--fj-color-accent-soft);
+      --off: var(--fj-color-border-strong); --warn: var(--fj-color-state-danger);
+    }
+    body { width: auto; min-width: 280px; font-family: var(--fj-font); }
+  </style>
+`;
+await patch("popup.html", [["</head>", THEME + "</head>"]]);
 
 console.log(`synced ${src} -> ${dst}`);

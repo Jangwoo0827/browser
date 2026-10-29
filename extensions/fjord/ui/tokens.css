@@ -1,0 +1,87 @@
+/* Fjord design tokens. Source of truth: Figma "Fjord Browser — Design System & Screens" (docs/design/figma-ledger.json).
+   Names match the Figma variables' WEB code syntax (--fj-*). Light by default, dark via prefers-color-scheme. */
+:root {
+  color-scheme: light dark;
+
+  /* color / semantic (Light) */
+  --fj-color-bg-canvas: #f6f7f9;
+  --fj-color-bg-rail: #eceef2;
+  --fj-color-bg-surface: #ffffff;
+  --fj-color-bg-surface-hover: #eceef2;
+  --fj-color-bg-active: #e0e4ff;
+  --fj-color-border-subtle: #dfe2e8;
+  --fj-color-border-strong: #c7ccd6;
+  --fj-color-text-primary: #16181d;
+  --fj-color-text-secondary: #4a5060;
+  --fj-color-text-muted: #6b7280;
+  --fj-color-text-on-accent: #ffffff;
+  --fj-color-accent-primary: #6366f1;
+  --fj-color-accent-primary-hover: #4f52e0;
+  --fj-color-accent-soft: #eef0ff;
+  --fj-color-accent-secondary: #0d9488;
+  --fj-color-state-success: #16a34a;
+  --fj-color-state-danger: #ef4444;
+  --fj-color-state-warning: #f59e0b;
+
+  /* space */
+  --fj-space-1: 2px;
+  --fj-space-2: 4px;
+  --fj-space-3: 6px;
+  --fj-space-4: 8px;
+  --fj-space-5: 12px;
+  --fj-space-6: 16px;
+  --fj-space-7: 20px;
+  --fj-space-8: 24px;
+  --fj-space-9: 32px;
+  --fj-space-10: 40px;
+
+  /* radius */
+  --fj-radius-sm: 6px;
+  --fj-radius-md: 8px;
+  --fj-radius-lg: 12px;
+  --fj-radius-xl: 16px;
+  --fj-radius-full: 999px;
+
+  /* size */
+  --fj-size-rail-collapsed: 48px;
+  --fj-size-rail-expanded: 168px;
+  --fj-size-control-sm: 28px;
+  --fj-size-control-md: 34px;
+  --fj-size-icon: 20px;
+  --fj-size-tile-h: 112px;
+
+  /* type */
+  --fj-font: Pretendard, "Noto Sans KR", "Malgun Gothic", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* elevation + motion */
+  --fj-shadow-raised: 0 6px 18px rgba(15, 17, 21, 0.14);
+  --fj-motion: 120ms ease-out;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fj-color-bg-canvas: #16181d;
+    --fj-color-bg-rail: #0f1115;
+    --fj-color-bg-surface: #20232a;
+    --fj-color-bg-surface-hover: #2d3037;
+    --fj-color-bg-active: #3a3ca8;
+    --fj-color-border-subtle: #2d3037;
+    --fj-color-border-strong: #4a5060;
+    --fj-color-text-primary: #f6f7f9;
+    --fj-color-text-secondary: #c7ccd6;
+    --fj-color-text-muted: #9aa1ad;
+    --fj-color-text-on-accent: #ffffff;
+    --fj-color-accent-primary: #818cf8;
+    --fj-color-accent-primary-hover: #6366f1;
+    --fj-color-accent-soft: #3a3ca8;
+    --fj-color-accent-secondary: #2dd4bf;
+    --fj-color-state-success: #22c55e;
+    --fj-color-state-danger: #f87171;
+    --fj-color-state-warning: #f59e0b;
+    --fj-shadow-raised: 0 6px 18px rgba(0, 0, 0, 0.45);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --fj-motion: 0ms; }
+}

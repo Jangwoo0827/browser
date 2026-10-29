@@ -1,102 +1,59 @@
-:root {
-  color-scheme: light dark;
-  --bg: #f6f7f9;
-  --fg: #1f2328;
-  --muted: #6b7280;
-  --rail: #eceef2;
-  --hover: #dfe2e8;
-  --active: #c9d4ff;
-  --line: #d6d9df;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1b1d22;
-    --fg: #e6e8ec;
-    --muted: #9aa1ad;
-    --rail: #14161a;
-    --hover: #272a31;
-    --active: #33407a;
-    --line: #2d3037;
-  }
-}
-* { box-sizing: border-box; }
-html, body { height: 100%; margin: 0; }
-body {
-  display: flex;
-  font: 13px/1.4 system-ui, "Segoe UI", sans-serif;
-  background: var(--bg);
-  color: var(--fg);
-  overflow: hidden;
-}
+html, body { height: 100%; overflow: hidden; }
+body { display: flex; }
 
+/* ---- rail: 48px collapsed (icon only), 168px expanded (icon + label) ---- */
 #rail {
-  width: 150px;
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 6px;
-  background: var(--rail);
-  border-right: 1px solid var(--line);
-  overflow-y: auto;
-  overflow-x: hidden;
+  width: var(--fj-size-rail-expanded);
+  flex: none; display: flex; flex-direction: column; gap: var(--fj-space-1);
+  padding: var(--fj-space-4);
+  background: var(--fj-color-bg-rail);
+  border-right: 1px solid var(--fj-color-border-subtle);
+  overflow-y: auto; overflow-x: hidden;
+  transition: width var(--fj-motion);
 }
-body.collapsed #rail { width: 48px; align-items: center; }
-#items, #builtins { display: flex; flex-direction: column; gap: 2px; }
-#builtins { padding-top: 6px; margin-top: 6px; border-top: 1px solid var(--line); }
-body.collapsed #items, body.collapsed #builtins { align-items: center; }
-.spacer { flex: 1; }
+body.collapsed #rail { width: var(--fj-size-rail-collapsed); padding: var(--fj-space-3); align-items: center; }
+.rail-group { display: flex; flex-direction: column; gap: var(--fj-space-1); }
+body.collapsed .rail-group { align-items: center; }
+.rail-spacer { flex: 1; min-height: var(--fj-space-4); }
+.rail-divider { height: 1px; margin: var(--fj-space-2) var(--fj-space-3); background: var(--fj-color-border-subtle); align-self: stretch; }
+body.collapsed .rail-divider { align-self: center; width: 32px; margin: var(--fj-space-2) 0; }
 
 .rail-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  min-height: 34px;
-  padding: 4px 6px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
+  display: flex; align-items: center; gap: var(--fj-space-4);
+  width: 100%; height: 36px; padding: 0 var(--fj-space-3);
+  border: 0; border-radius: var(--fj-radius-md);
+  background: transparent; color: var(--fj-color-text-secondary);
+  font: 500 13px/18px var(--fj-font); text-align: left; cursor: pointer;
+  transition: background var(--fj-motion), color var(--fj-motion);
 }
-.rail-btn:hover { background: var(--hover); }
-.rail-btn.active { background: var(--active); }
-.rail-btn .ico {
-  flex: none;
-  width: 22px;
-  height: 22px;
-  display: grid;
-  place-items: center;
-  font-size: 16px;
-}
-.rail-btn img.fav { width: 20px; height: 20px; border-radius: 5px; object-fit: contain; }
-.rail-btn .avatar {
-  width: 22px; height: 22px; border-radius: 6px;
-  display: grid; place-items: center;
-  color: #fff; font-weight: 600; font-size: 12px;
-}
-.rail-btn .label { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-body.collapsed .rail-btn { width: 36px; padding: 4px; justify-content: center; }
-body.collapsed .rail-btn .label { display: none; }
+.rail-btn:hover { background: var(--fj-color-bg-surface-hover); color: var(--fj-color-text-primary); }
+.rail-btn.active { background: var(--fj-color-bg-active); color: var(--fj-color-accent-primary); }
+.rail-glyph { flex: none; width: 22px; height: 22px; display: grid; place-items: center; }
+.rail-glyph .fj-icon { width: 20px; height: 20px; }
+.rail-glyph img { width: 22px; height: 22px; border-radius: var(--fj-radius-sm); object-fit: contain; }
+.rail-label { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+body.collapsed .rail-btn { width: 36px; padding: 0; justify-content: center; }
+body.collapsed .rail-label { display: none; }
 
-#view { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+/* ---- content ---- */
+#view { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--fj-color-bg-surface); }
 #bar {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  height: 34px;
-  padding: 0 6px 0 10px;
-  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: var(--fj-space-3);
+  height: 35px; padding: 0 var(--fj-space-4) 0 var(--fj-space-5);
+  border-bottom: 1px solid var(--fj-color-border-subtle); background: var(--fj-color-bg-canvas);
 }
-#title { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--muted); }
-#bar button {
-  border: 0; background: transparent; color: inherit; font-size: 16px;
-  width: 28px; height: 28px; border-radius: 6px; cursor: pointer;
+#title { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--fj-color-text-secondary); }
+.bar-btn {
+  display: grid; place-items: center; width: var(--fj-size-control-sm); height: var(--fj-size-control-sm);
+  border: 0; border-radius: var(--fj-radius-sm); background: transparent; color: var(--fj-color-text-muted); cursor: pointer;
 }
-#bar button:hover { background: var(--hover); }
+.bar-btn:hover { background: var(--fj-color-bg-surface-hover); color: var(--fj-color-text-primary); }
+.bar-btn .fj-icon { width: 18px; height: 18px; }
 #frame { flex: 1; width: 100%; border: 0; background: #fff; }
-#empty { margin: auto; padding: 24px; text-align: center; color: var(--muted); }
-[hidden] { display: none !important; }
+#empty { margin: auto; padding: var(--fj-space-8); text-align: center; }
+#empty p { margin: 0 0 var(--fj-space-3); }
+
+/* dark favicons (GitHub, Notion ...) vanish on a dark rail: give every favicon a light backing */
+@media (prefers-color-scheme: dark) {
+  .rail-glyph img { background: #f6f7f9; padding: 2px; }
+}

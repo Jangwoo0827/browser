@@ -1,0 +1,19 @@
+{
+  "file": "https://www.figma.com/design/fWkyK4QNyMaEM4K65JwHf2",
+  "fileKey": "fWkyK4QNyMaEM4K65JwHf2",
+  "note": "Starter plan: one mode per collection, so Light/Dark are separate collections with identical variable names (css vars --fj-color-*).",
+  "collections": {
+    "primitives": "VariableCollectionId:2:32",
+    "colorLight": "VariableCollectionId:2:61",
+    "colorDark": "VariableCollectionId:2:80",
+    "space": "VariableCollectionId:2:99",
+    "radius": "VariableCollectionId:2:110",
+    "size": "VariableCollectionId:2:116"
+  },
+  "colorLight": {"bg/canvas":"VariableID:2:62","bg/rail":"VariableID:2:63","bg/surface":"VariableID:2:64","bg/surface-hover":"VariableID:2:65","bg/active":"VariableID:2:66","border/subtle":"VariableID:2:67","border/strong":"VariableID:2:68","text/primary":"VariableID:2:69","text/secondary":"VariableID:2:70","text/muted":"VariableID:2:71","text/on-accent":"VariableID:2:72","accent/primary":"VariableID:2:73","accent/primary-hover":"VariableID:2:74","accent/soft":"VariableID:2:75","accent/secondary":"VariableID:2:76","state/success":"VariableID:2:77","state/danger":"VariableID:2:78","state/warning":"VariableID:2:79"},
+  "colorDark": {"bg/canvas":"VariableID:2:81","bg/rail":"VariableID:2:82","bg/surface":"VariableID:2:83","bg/surface-hover":"VariableID:2:84","bg/active":"VariableID:2:85","border/subtle":"VariableID:2:86","border/strong":"VariableID:2:87","text/primary":"VariableID:2:88","text/secondary":"VariableID:2:89","text/muted":"VariableID:2:90","text/on-accent":"VariableID:2:91","accent/primary":"VariableID:2:92","accent/primary-hover":"VariableID:2:93","accent/soft":"VariableID:2:94","accent/secondary":"VariableID:2:95","state/success":"VariableID:2:96","state/danger":"VariableID:2:97","state/warning":"VariableID:2:98"},
+  "space": {"1":"VariableID:2:100","2":"VariableID:2:101","3":"VariableID:2:102","4":"VariableID:2:103","5":"VariableID:2:104","6":"VariableID:2:105","7":"VariableID:2:106","8":"VariableID:2:107","9":"VariableID:2:108","10":"VariableID:2:109"},
+  "radius": {"sm":"VariableID:2:111","md":"VariableID:2:112","lg":"VariableID:2:113","xl":"VariableID:2:114","full":"VariableID:2:115"},
+  "size": {"rail-collapsed":"VariableID:2:117","rail-expanded":"VariableID:2:118","control-sm":"VariableID:2:119","control-md":"VariableID:2:120","icon":"VariableID:2:121","tile-h":"VariableID:2:122","panel-w":"VariableID:2:123"},
+  "textStyles": {"Display/Clock":"S:33bce1695096c2b8cbae465e3beb63000507fe7c,","Title/Page":"S:06e1c59d829ec4f6dd9757c3c70cf48c8644354e,","Title/Section":"S:0d85003d49b2705579045e4c8ee86f74d5188190,","Body/Default":"S:105dc2df0d71b77212da2837d0ed078ad53b0179,","Body/Strong":"S:93861cf52a4edd4d18f0c7e221c352c2b809533d,","Label/Default":"S:0ddf7d8d81c3999efeb7ea9d69d4c0e5b6b05aac,","Caption/Default":"S:7d36cf8ad39d9baad1ed9c8170d1fb624c8259e5,","Micro/Default":"S:20ea2153dfbe026bfb7def4f070a8367f43c77b3,"}
+}

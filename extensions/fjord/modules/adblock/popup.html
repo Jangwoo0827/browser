@@ -82,6 +82,16 @@
     button.primary:hover { filter: brightness(1.08); }
     button:disabled { opacity: .6; cursor: progress; }
   </style>
+  <link rel="stylesheet" href="../../ui/tokens.css">
+  <style>
+    :root {
+      --bg: var(--fj-color-bg-surface); --fg: var(--fj-color-text-primary); --muted: var(--fj-color-text-muted);
+      --card: var(--fj-color-bg-canvas); --line: var(--fj-color-border-subtle);
+      --accent: var(--fj-color-accent-primary); --accent-2: var(--fj-color-accent-secondary); --accent-soft: var(--fj-color-accent-soft);
+      --off: var(--fj-color-border-strong); --warn: var(--fj-color-state-danger);
+    }
+    body { width: auto; min-width: 280px; font-family: var(--fj-font); }
+  </style>
 </head>
 <body>
   <header>
