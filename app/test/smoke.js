@@ -367,6 +367,90 @@ app.whenReady().then(async () => {
       check("settings page shows the current values", fields === "google|restore", fields);
     }
 
+    // ---- M1d: permissions, site info, popup blocking, certificate errors ----
+    const permsMod = require("../src/permissions");
+    check("permission policy: stored decision wins, safe ones allowed, unknown denied, internal pages have no origin",
+      permsMod.policy("geolocation", null) === "ask" && permsMod.policy("geolocation", "allow") === "allow" && permsMod.policy("notifications", "deny") === "deny" &&
+      permsMod.policy("fullscreen", null) === "allow" && permsMod.policy("usb", null) === "deny" && permsMod.originOf("fjord://app/x.html") === null && permsMod.originOf("file:///c:/a.html") === null && permsMod.originOf("http://a.test:81/x") === "http://a.test:81");
+    const pst = new St(path.join(os.tmpdir(), "perm-" + Date.now() + ".json"));
+    pst.setPerm("https://a.test", "geolocation", "allow");
+    pst.setPerm("https://a.test", "notifications", "deny");
+    pst.setPerm("https://a.test", "geolocation", null);
+    check("site permission store: set / reset / list", pst.getPerm("https://a.test", "geolocation") === null && pst.getPerm("https://a.test", "notifications") === "deny" && pst.listPerms().length === 1);
+
+    f.commands.newTab(base + "/page?perm");
+    const permTab = await waitFor(() => f.serialize().tabs.find((t) => t.url.endsWith("?perm") && t.title === "Needle Page"), 8000);
+    const pwc = f.views.get(permTab.id).webContents;
+    const origin = new URL(base).origin;
+    check("http page shows the 'not secure' indicator, internal pages none", f.serialize().security === "insecure" && f.securityOf("fjord://app/newtab.html") === "internal" && f.securityOf("https://a.test/") === "secure");
+    pwc.executeJavaScript("navigator.geolocation.getCurrentPosition(() => {}, () => {})").catch(() => {});
+    await waitFor(() => f.pendingPerms.length === 1 && f.overlayKind() === "permission", 6000);
+    check("a permission request opens the prompt overlay", f.pendingPerms.length === 1 && f.overlayKind() === "permission" && f.pendingPerms[0].origin === origin, f.pendingPerms.map((p) => p.key));
+    await sleep(300);
+    await shot(f.overlay().webContents, "app-permission.png");
+    f.commands.permAnswer({ id: f.pendingPerms[0].id, choice: "allow" });
+    const granted = await pwc.executeJavaScript("navigator.permissions.query({ name: 'geolocation' }).then((r) => r.state)");
+    check("allowing is remembered and answers the site", f.store.getPerm(origin, "geolocation") === "allow" && granted === "granted" && f.pendingPerms.length === 0, granted);
+    const notif = pwc.executeJavaScript("Notification.requestPermission()");
+    await waitFor(() => f.pendingPerms.length === 1, 6000);
+    f.commands.permAnswer({ id: f.pendingPerms[0].id, choice: "deny" });
+    check("blocking is remembered and answers the site", (await notif) === "denied" && f.store.getPerm(origin, "notifications") === "deny");
+    f.commands.permSet({ origin, key: "notifications", value: null });
+
+    f.commands.siteInfoShow();
+    await sleep(500);
+    check("site info panel opens", f.overlayKind() === "siteinfo");
+    await shot(f.overlay().webContents, "app-siteinfo.png");
+    f.commands.overlayHide();
+
+    // popup blocking: a script opening a window by itself is held back, a click-opened one is allowed
+    const tabCount = () => f.serialize().tabs.length;
+    const tabsBefore = tabCount();
+    await pwc.executeJavaScript(`window.open(${JSON.stringify(base + "/page?popped")})`);
+    await sleep(500);
+    const blockedNow = f.serialize().tabs.find((t) => t.id === permTab.id).blocked;
+    check("script popup without user action is blocked and listed", tabCount() === tabsBefore && blockedNow && blockedNow.length === 1, blockedNow);
+    pwc.sendInputEvent({ type: "mouseDown", x: 60, y: 60, button: "left", clickCount: 1 });
+    pwc.sendInputEvent({ type: "mouseUp", x: 60, y: 60, button: "left", clickCount: 1 });
+    await sleep(150);
+    await pwc.executeJavaScript(`window.open(${JSON.stringify(base + "/page?clicked")})`);
+    await sleep(500);
+    check("popup right after a click is allowed", tabCount() === tabsBefore + 1, tabCount() - tabsBefore);
+    f.commands.activate(permTab.id); // the click-opened popup took focus; the held ones belong to the first tab
+    f.commands.popupsAllow();
+    check("'always allow popups' opens the held ones and is remembered", f.store.getPerm(origin, "popups") === "allow" && tabCount() === tabsBefore + 2);
+    f.commands.permSet({ origin, key: "popups", value: null });
+    for (const t of f.serialize().tabs.filter((x) => x.url.endsWith("?popped") || x.url.endsWith("?clicked") || x.url.endsWith("?perm"))) f.commands.closeTab(t.id);
+
+    // certificate errors need a self-signed server; skipped (not failed) when openssl is missing
+    const cp = require("node:child_process");
+    const ossl = ["openssl", "C:/Program Files/Git/usr/bin/openssl.exe"].find((c) => { try { return cp.spawnSync(c, ["version"]).status === 0; } catch { return false; } });
+    if (!ossl) console.log("SKIP  certificate error tests (openssl not found)");
+    else {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "fjord-cert-"));
+      const gen = cp.spawnSync(ossl, ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", path.join(dir, "k.pem"), "-out", path.join(dir, "c.pem"), "-days", "2", "-subj", "/CN=localhost"], { env: { ...process.env, MSYS_NO_PATHCONV: "1" } });
+      if (gen.status !== 0) console.log("SKIP  certificate error tests (openssl failed)");
+      else {
+        const https = require("node:https");
+        const secure = https.createServer({ key: fs.readFileSync(path.join(dir, "k.pem")), cert: fs.readFileSync(path.join(dir, "c.pem")) }, (req, res) => { res.setHeader("content-type", "text/html; charset=utf-8"); res.end("<title>Secure Needle</title><p>hello</p>"); });
+        await new Promise((r) => secure.listen(0, "127.0.0.1", r));
+        const surl = `https://127.0.0.1:${secure.address().port}/`;
+        f.commands.newTab(surl);
+        const certTab = await waitFor(() => f.serialize().tabs.find((t) => t.url.startsWith("fjord://app/error.html?kind=cert") && t.title === "개인 정보 보호 오류"), 12000);
+        check("untrusted certificate shows the warning page", !!certTab, certTab && certTab.url);
+        check("address bar keeps the address and flags the connection", certTab && certTab.shownUrl === surl && f.serialize().security === "danger", f.serialize().security);
+        if (certTab) {
+          await sleep(400);
+          await shot(f.views.get(certTab.id).webContents, "app-cert.png");
+          f.commands.certProceed(surl, f.views.get(certTab.id).webContents);
+          const opened = await waitFor(() => f.serialize().tabs.find((t) => t.id === certTab.id && t.title === "Secure Needle"), 12000);
+          check("'proceed anyway' opens the page for this run only", !!opened && f.certAllowed.has(new URL(surl).origin) && f.serialize().security === "danger", opened && opened.url);
+          f.commands.closeTab(certTab.id);
+        }
+        await new Promise((r) => secure.close(r));
+      }
+    }
+
     // workspace prompt (drawn by the overlay, not a modal dialog hidden behind the page)
     f.commands.promptShow({ mode: "add" });
     await sleep(500);

@@ -48,6 +48,7 @@ class Store {
       folders: Array.isArray(d.folders) ? d.folders : [],
       settings: { ...SETTING_DEFAULTS, ...(d.settings || {}) },
       window: d.window && typeof d.window === "object" ? d.window : null,
+      permissions: d.permissions && typeof d.permissions === "object" ? d.permissions : {},
       running: d.running === true,
     };
   }
@@ -110,6 +111,37 @@ class Store {
     this.data.settings[key] = value;
     this.save();
     return { value };
+  }
+
+  // ---- site permissions: { origin: { key: "allow" | "deny" } } ----
+  getPerm(origin, key) {
+    const o = this.data.permissions[origin];
+    return (o && o[key]) || null;
+  }
+
+  setPerm(origin, key, value) {
+    if (!origin || !key) return;
+    if (value !== "allow" && value !== "deny") {
+      const o = this.data.permissions[origin];
+      if (o) {
+        delete o[key];
+        if (!Object.keys(o).length) delete this.data.permissions[origin];
+      }
+    } else {
+      this.data.permissions[origin] = { ...(this.data.permissions[origin] || {}), [key]: value };
+    }
+    this.save();
+  }
+
+  listPerms() {
+    const rows = [];
+    for (const [origin, o] of Object.entries(this.data.permissions)) for (const [key, value] of Object.entries(o)) rows.push({ origin, key, value });
+    return rows.sort((a, b) => a.origin.localeCompare(b.origin) || a.key.localeCompare(b.key));
+  }
+
+  clearPerms() {
+    this.data.permissions = {};
+    this.save();
   }
 
   // startup "새 탭" / "홈페이지": keep only the pinned tabs of every workspace

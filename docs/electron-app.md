@@ -40,6 +40,6 @@ the extension build (`extensions/fjord`, `scripts/launch.ps1`), which keeps work
 
 ## Roadmap
 1. Done: shell, tabs, workspaces, rail, new tab page, persistence, smoke test.
-2. Done: downloads, find, zoom, context menu, history, address suggestions. Still open: permission prompts, bookmarks, settings page (search engine, dark/light), tab restore (Ctrl+Shift+T), tab drag out/in.
+2. Done: downloads, find, zoom, context menu, history, address suggestions. Since then: tab features, bookmarks, settings page, print/fullscreen/window state, error pages, permission prompts, site info, popup blocking, certificate errors (M1 done). Still open: see `docs/feature-checklist.md` (M2+).
 3. Built-ins: ad blocking (lists + `webRequest`), Claude side panel (claude.ai in a right-hand view), pinned-site panel.
 4. Packaging: electron-builder installer, branded exe icon, GitHub Releases + auto-update.

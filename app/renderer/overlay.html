@@ -20,6 +20,30 @@
     <button id="findClose" class="mini" title="닫기 (Esc)" aria-label="닫기"></button>
   </div>
 
+  <!-- permission request -->
+  <div id="permission" class="card perm" hidden>
+    <p id="permTitle" class="perm-title"></p>
+    <p id="permSub" class="fj-caption"></p>
+    <div class="row">
+      <button id="permDeny" class="fj-btn">차단</button>
+      <button id="permOnce" class="fj-btn">이번만 허용</button>
+      <button id="permAllow" class="fj-btn fj-btn--primary">허용</button>
+    </div>
+  </div>
+
+  <!-- site info -->
+  <div id="siteinfo" class="card site" hidden>
+    <div class="site-head"><span id="siteIcon"></span><div><div id="siteOrigin" class="site-origin"></div><div id="siteStatus" class="fj-caption"></div></div></div>
+    <div id="siteRows"></div>
+  </div>
+
+  <!-- blocked popups -->
+  <div id="popups" class="card pops" hidden>
+    <h2 class="fj-title-section">팝업이 차단됐어요</h2>
+    <ul id="popList"></ul>
+    <button id="popAllow" class="fj-btn">이 사이트의 팝업 항상 허용</button>
+  </div>
+
   <!-- bookmark edit -->
   <form id="bookmark" class="card bmedit" hidden>
     <h2 class="fj-title-section">북마크</h2>

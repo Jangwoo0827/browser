@@ -17,7 +17,17 @@ const LOAD = {
 };
 
 let title, body, detail = "";
-if (kind === "crash") {
+const actions = [];
+if (kind === "cert") {
+  title = "연결이 비공개로 설정되어 있지 않아요";
+  body = "이 사이트의 보안 인증서를 신뢰할 수 없어요. 공격자가 비밀번호나 카드 정보 같은 내용을 가로채려는 것일 수도 있어요.";
+  detail = (q.get("desc") || "") + (code ? ` (${code})` : "");
+  document.title = "개인 정보 보호 오류";
+  $("ico").innerHTML = icon("warning");
+  $("ico").style.color = "var(--fj-color-state-danger)";
+  actions.push(Object.assign(document.createElement("button"), { className: "fj-btn fj-btn--primary", textContent: "안전한 곳으로 돌아가기", onclick: () => window.fjord.cmd("safeExit") }));
+  actions.push(Object.assign(document.createElement("button"), { className: "fj-btn", textContent: "안전하지 않음으로 이동", onclick: () => window.fjord.cmd("certProceed", url) }));
+} else if (kind === "crash") {
   title = "페이지가 중단됐어요";
   body = "이 탭의 렌더러 프로세스가 예기치 않게 종료됐어요. 다시 불러오면 대부분 해결돼요.";
   document.title = "페이지가 중단됨";
@@ -32,6 +42,5 @@ $("title").textContent = title;
 $("body").textContent = body;
 $("url").textContent = url;
 $("detail").textContent = detail;
-const retry = Object.assign(document.createElement("button"), { className: "fj-btn fj-btn--primary", textContent: "다시 시도" });
-retry.onclick = () => window.fjord.cmd("retry", url);
-$("actions").append(retry);
+if (!actions.length) actions.push(Object.assign(document.createElement("button"), { className: "fj-btn fj-btn--primary", textContent: "다시 시도", onclick: () => window.fjord.cmd("retry", url) }));
+$("actions").append(...actions);

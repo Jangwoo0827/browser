@@ -129,8 +129,34 @@ function renderToolbar() {
   $("forward").disabled = !tab || !tab.canGoForward;
   $("reload").innerHTML = icon(tab && tab.loading ? "close" : "reload");
   $("reload").title = tab && tab.loading ? "중지" : "새로고침 (Ctrl+R)";
+  renderSecurity(tab);
   const input = $("addrInput");
   if (document.activeElement !== input) input.value = !tab || tab.isNewTab ? "" : tab.shownUrl || tab.url;
+}
+
+const SEC = {
+  secure: ["lock", "", "연결이 안전해요 · 사이트 정보 보기"],
+  insecure: ["warning", "안전하지 않음", "보안 연결(HTTPS)이 아니에요 · 사이트 정보 보기"],
+  danger: ["warning", "인증서 오류", "인증서 오류를 무시하고 열었어요 · 사이트 정보 보기"],
+  file: ["folder", "", "내 컴퓨터의 파일"],
+};
+
+function renderSecurity(tab) {
+  const sec = state.security;
+  const s = !tab || tab.isNewTab ? null : SEC[sec];
+  const btn = $("secBtn");
+  btn.hidden = !s;
+  $("addr").classList.toggle("has-sec", !!s);
+  $("addr").classList.toggle("sec-wide", !!s && !!s[1]);
+  if (s) {
+    btn.className = sec;
+    btn.innerHTML = icon(s[0]) + (s[1] ? `<span>${s[1]}</span>` : "");
+    btn.title = s[2];
+  }
+  const blocked = (tab && tab.blocked && tab.blocked.length) || 0;
+  $("popBtn").hidden = !blocked;
+  $("popBtn").innerHTML = icon("popup");
+  $("addr").classList.toggle("has-pop", blocked > 0);
 }
 
 function renderBar() {
@@ -199,6 +225,8 @@ $("addr").onsubmit = (e) => {
   if (text.trim()) cmd("navigate", { id: state.activeTab, input: text });
   input.blur();
 };
+$("secBtn").onclick = () => cmd("siteInfoShow");
+$("popBtn").onclick = () => cmd("popupsShow");
 $("homeBtn").innerHTML = icon("home");
 $("homeBtn").onclick = () => cmd("home");
 $("starBtn").innerHTML = icon("star");
