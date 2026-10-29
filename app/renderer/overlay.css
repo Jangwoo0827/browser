@@ -24,6 +24,18 @@ html, body { height: 100%; background: transparent; overflow: hidden; user-selec
 .mini:hover { background: var(--fj-color-bg-surface-hover); color: var(--fj-color-text-primary); }
 .mini .fj-icon { width: 16px; height: 16px; }
 
+/* tab search */
+.tabsearch { display: flex; flex-direction: column; gap: var(--fj-space-3); padding: var(--fj-space-4); }
+.tabsearch input { width: 100%; height: 38px; user-select: text; }
+#tsList { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
+.ts { display: flex; align-items: center; gap: var(--fj-space-5); height: 46px; padding: 0 var(--fj-space-5); border-radius: var(--fj-radius-md); cursor: pointer; }
+.ts.sel, .ts:hover { background: var(--fj-color-bg-surface-hover); }
+.ts .ico { flex: none; width: 20px; height: 20px; display: grid; place-items: center; color: var(--fj-color-text-muted); }
+.ts .ico img { width: 18px; height: 18px; border-radius: 4px; }
+.ts .ico .fj-icon { width: 16px; height: 16px; }
+.ts .t { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 500 13px/18px var(--fj-font); }
+.ts .w { flex: none; padding: 1px var(--fj-space-4); border-radius: var(--fj-radius-full); background: var(--fj-color-bg-active); color: var(--fj-color-accent-primary); font: 500 11px/16px var(--fj-font); }
+
 /* prompt */
 .prompt { padding: var(--fj-space-6); }
 .prompt h2 { margin: 0 0 var(--fj-space-5); }

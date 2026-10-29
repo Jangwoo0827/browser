@@ -20,6 +20,13 @@
     <button id="findClose" class="mini" title="닫기 (Esc)" aria-label="닫기"></button>
   </div>
 
+  <!-- tab search -->
+  <div id="tabsearch" class="card tabsearch" hidden>
+    <input id="tsInput" class="fj-field" placeholder="열려 있는 탭 검색 (제목 또는 주소)" spellcheck="false" autocomplete="off">
+    <ul id="tsList"></ul>
+    <p id="tsEmpty" class="fj-caption empty" hidden>일치하는 탭이 없어요.</p>
+  </div>
+
   <!-- text prompt -->
   <form id="prompt" class="card prompt" hidden>
     <h2 id="promptTitle" class="fj-title-section"></h2>

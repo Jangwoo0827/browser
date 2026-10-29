@@ -57,6 +57,12 @@ body {
 .tab-ico .spin { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--fj-color-border-strong); border-top-color: var(--fj-color-accent-primary); animation: spin 700ms linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .tab-title { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.tab.pinned { flex: 0 0 38px; min-width: 38px; max-width: 38px; padding: 0; justify-content: center; position: relative; }
+.tab.pinned .tab-audio { position: absolute; right: 1px; bottom: 1px; }
+.tab-audio { flex: none; display: grid; place-items: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: var(--fj-radius-sm); background: transparent; color: var(--fj-color-accent-primary); cursor: pointer; }
+.tab-audio:hover { background: var(--fj-color-border-subtle); }
+.tab-audio .fj-icon { width: 14px; height: 14px; }
+#tabSearch { margin-bottom: 1px; }
 .tab-x { flex: none; display: grid; place-items: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: var(--fj-radius-sm); background: transparent; color: inherit; opacity: 0; cursor: pointer; }
 .tab:hover .tab-x, .tab.active .tab-x { opacity: .7; }
 .tab-x:hover { opacity: 1; background: var(--fj-color-border-subtle); }

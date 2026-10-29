@@ -58,6 +58,17 @@ function tabTitle(t) {
   try { return new URL(t.url).host; } catch { return t.url; }
 }
 
+function audioButton(t) {
+  if (!t.audible && !t.muted) return null;
+  const b = document.createElement("button");
+  b.className = "tab-audio";
+  b.title = t.muted ? "음소거 해제" : "음소거";
+  b.setAttribute("aria-label", b.title);
+  b.innerHTML = icon(t.muted ? "volumeOff" : "volume");
+  b.onmousedown = (e) => { e.stopPropagation(); e.preventDefault(); cmd("muteTab", t.id); };
+  return b;
+}
+
 function tabIcon(t) {
   const box = document.createElement("span");
   box.className = "tab-ico";
@@ -77,7 +88,7 @@ function renderTabs() {
   $("tabList").replaceChildren(
     ...state.tabs.map((t) => {
       const el = document.createElement("div");
-      el.className = "tab" + (t.id === state.activeTab ? " active" : "");
+      el.className = "tab" + (t.id === state.activeTab ? " active" : "") + (t.pinned ? " pinned" : "");
       el.setAttribute("role", "tab");
       el.draggable = true;
       el.title = tabTitle(t);
@@ -92,7 +103,8 @@ function renderTabs() {
       const title = document.createElement("span");
       title.className = "tab-title";
       title.textContent = tabTitle(t);
-      el.append(tabIcon(t), title, x);
+      const audio = audioButton(t);
+      el.append(tabIcon(t), ...(t.pinned ? [] : [title]), ...(audio ? [audio] : []), ...(t.pinned ? [] : [x]));
       el.onmousedown = (e) => { if (e.button === 0 && !e.target.closest(".tab-x")) cmd("activate", t.id); };
       el.onauxclick = (e) => { if (e.button === 1) cmd("closeTab", t.id); };
       el.oncontextmenu = (e) => { e.preventDefault(); cmd("tabMenu", t.id); };
@@ -133,6 +145,8 @@ $("newTab").innerHTML = icon("plus");
 $("back").innerHTML = icon("arrowLeft");
 $("forward").innerHTML = icon("arrowRight");
 $("newTab").onclick = () => cmd("newTab");
+$("tabSearch").innerHTML = icon("search");
+$("tabSearch").onclick = () => cmd("tabSearchShow");
 $("back").onclick = () => cmd("back");
 $("forward").onclick = () => cmd("forward");
 $("reload").onclick = () => {
