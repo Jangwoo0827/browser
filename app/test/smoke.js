@@ -166,6 +166,53 @@ app.whenReady().then(async () => {
     await click(tr.x - 20, tr.y);
     check("clicking a tab activates it", f.serialize().activeTab !== null && f.serialize().tabs.some((t) => t.id === f.serialize().activeTab), f.serialize().activeTab === firstTab);
 
+    // ---- M1a: tab features (in a fresh workspace so the tab order is predictable) ----
+    f.commands.wsAdd("탭기능");
+    await sleep(800);
+    const names = () => f.serialize().tabs.map((t) => (t.isNewTab ? "new" : t.url.split("?")[1]));
+    for (const tag of ["A", "B", "C"]) { f.commands.newTab(base + "/page?" + tag); await sleep(350); }
+    const idOf = (tag) => f.serialize().tabs.find((t) => t.url.endsWith("?" + tag)).id;
+    check("three tabs after the new tab", names().join() === "new,A,B,C", names());
+
+    f.commands.pinTab(idOf("B"));
+    await sleep(200);
+    check("pinning moves the tab to the front", names().join() === "B,new,A,C" && f.serialize().tabs[0].pinned === true, names());
+
+    f.commands.duplicateTab(idOf("C"));
+    await sleep(500);
+    check("duplicate opens the same page right after the original", names().join() === "B,new,A,C,C", names());
+
+    const cWc = f.views.get(idOf("C")).webContents;
+    f.commands.muteTab(idOf("C"));
+    await sleep(200);
+    check("muting a tab", cWc.audioMuted === true && f.serialize().tabs.find((t) => t.id === idOf("C")).muted === true);
+    f.commands.muteTab(idOf("C"));
+    check("unmuting a tab", cWc.audioMuted === false);
+
+    f.commands.closeLeft(idOf("C"));
+    await sleep(400);
+    check("close tabs to the left keeps pinned tabs", names().join() === "B,C,C", names());
+    f.commands.closeRight(f.serialize().tabs[1].id);
+    await sleep(400);
+    check("close tabs to the right", names().join() === "B,C", names());
+    f.commands.closeOthers(idOf("C"));
+    await sleep(300);
+    check("close other tabs keeps pinned tabs", names().join() === "B,C", names());
+
+    const closedBefore = f.store.data.closed.length;
+    f.commands.closeTab(idOf("C"));
+    await sleep(500);
+    check("closing remembers the tab", f.store.data.closed.length === closedBefore + 1);
+    f.handleShortcut({ type: "keyDown", key: "T", control: true, shift: true });
+    await sleep(700);
+    check("Ctrl+Shift+T reopens the closed tab", names().join() === "B,C" && f.store.data.closed.length === closedBefore, names());
+
+    f.commands.tabSearchShow();
+    await sleep(500);
+    check("tab search overlay opens", f.overlayKind() === "tabsearch");
+    await shot(f.overlay().webContents, "app-tabsearch.png");
+    f.commands.overlayHide();
+
     // workspace prompt (drawn by the overlay, not a modal dialog hidden behind the page)
     f.commands.promptShow({ mode: "add" });
     await sleep(500);

@@ -21,6 +21,9 @@ const PATHS = {
   globe: '<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/>',
   download: '<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>',
   history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"/>',
+  pin: '<path d="M12 17v5M9 3h6l-1 6 3 3v2H7v-2l3-3z"/>',
+  volume: '<path d="M11 5 6 9H3v6h3l5 4zM15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>',
+  volumeOff: '<path d="M11 5 6 9H3v6h3l5 4zM22 9l-6 6M16 9l6 6"/>',
   arrowLeft: '<path d="M19 12H5M11 6l-6 6 6 6"/>',
   arrowRight: '<path d="M5 12h14M13 6l6 6-6 6"/>',
 };
