@@ -73,7 +73,19 @@ $("reset").onclick = () => {
   commit();
 };
 
+// edge rail settings (read by modules/rail)
+async function railInit() {
+  const { railSettings } = await chrome.storage.local.get("railSettings");
+  const cur = { enabled: true, side: "left", ...(railSettings || {}) };
+  $("railOn").checked = cur.enabled;
+  $("railSide").value = cur.side;
+  const save = () => chrome.storage.local.set({ railSettings: { enabled: $("railOn").checked, side: $("railSide").value } });
+  $("railOn").onchange = save;
+  $("railSide").onchange = save;
+}
+
 (async () => {
   items = (await Store.load()).items;
   render();
+  railInit();
 })();

@@ -1,6 +1,7 @@
 /* Fjord design tokens. Source of truth: Figma "Fjord Browser — Design System & Screens" (docs/design/figma-ledger.json).
    Names match the Figma variables' WEB code syntax (--fj-*). Light by default, dark via prefers-color-scheme. */
-:root {
+:root,
+:host {
   color-scheme: light dark;
 
   /* color / semantic (Light) */
@@ -59,7 +60,8 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root,
+  :host {
     --fj-color-bg-canvas: #16181d;
     --fj-color-bg-rail: #0f1115;
     --fj-color-bg-surface: #20232a;
@@ -83,5 +85,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :root { --fj-motion: 0ms; }
+  :root, :host { --fj-motion: 0ms; }
 }

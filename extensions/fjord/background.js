@@ -6,3 +6,4 @@ import "./modules/workspaces/background.js";
 import "./modules/newtab/background.js";
 import "./modules/adblock/background.js";
 import "./modules/claude/background.js";
+import "./modules/rail/background.js";

@@ -1,0 +1,26 @@
+/* Edge rail. Lives in a shadow root on web pages, so the host page's CSS cannot touch it. Needs ui/tokens.css + ui/base.css. */
+:host { all: initial; }
+.rail {
+  position: fixed; top: 0; bottom: 0; z-index: 2147483647;
+  width: var(--fj-size-rail-collapsed);
+  display: flex; flex-direction: column; align-items: center; gap: var(--fj-space-1);
+  padding: var(--fj-space-3);
+  background: var(--fj-color-bg-rail);
+  font: 500 13px/18px var(--fj-font);
+}
+.rail.left { left: 0; border-right: 1px solid var(--fj-color-border-subtle); }
+.rail.right { right: 0; border-left: 1px solid var(--fj-color-border-subtle); }
+.rail-group { display: flex; flex-direction: column; align-items: center; gap: var(--fj-space-1); }
+.rail-spacer { flex: 1; min-height: var(--fj-space-4); }
+.rail-divider { width: 32px; height: 1px; margin: var(--fj-space-2) 0; background: var(--fj-color-border-subtle); }
+
+.rail-btn {
+  display: grid; place-items: center; width: 36px; height: 36px; padding: 0;
+  border: 0; border-radius: var(--fj-radius-md); background: transparent; color: var(--fj-color-text-secondary); cursor: pointer;
+  transition: background var(--fj-motion), color var(--fj-motion);
+}
+.rail-btn:hover { background: var(--fj-color-bg-surface-hover); color: var(--fj-color-text-primary); }
+.rail-glyph { width: 22px; height: 22px; display: grid; place-items: center; }
+.rail-glyph .fj-icon { width: 20px; height: 20px; }
+.rail-glyph img { width: 22px; height: 22px; border-radius: var(--fj-radius-sm); object-fit: contain; }
+@media (prefers-color-scheme: dark) { .rail-glyph img { background: #f6f7f9; padding: 2px; } }

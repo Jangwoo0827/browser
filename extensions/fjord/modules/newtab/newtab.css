@@ -31,7 +31,7 @@ main {
 }
 #searchIcon { position: absolute; left: var(--fj-space-7); color: var(--fj-color-text-muted); display: grid; pointer-events: none; }
 #q {
-  width: 100%; height: 46px; padding: 0 var(--fj-space-7) 0 var(--fj-space-10);
+  width: 100%; height: 46px; padding: 0 var(--fj-space-7) 0 48px;
   font: 400 15px/22px var(--fj-font); color: var(--fj-color-text-primary);
   background: var(--fj-color-bg-surface); border: 1px solid var(--fj-color-border-subtle);
   border-radius: var(--fj-radius-full); box-shadow: var(--fj-shadow-raised); outline: none;
