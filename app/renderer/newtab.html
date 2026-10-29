@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>새 탭</title>
+  <link rel="stylesheet" href="fjord://shared/tokens.css">
+  <link rel="stylesheet" href="fjord://shared/base.css">
+  <link rel="stylesheet" href="newtab.css">
+</head>
+<body>
+  <main>
+    <div id="clock" class="fj-display" aria-hidden="true"></div>
+    <form id="search" autocomplete="off" role="search">
+      <input id="q" type="text" placeholder="검색어 또는 주소 입력" aria-label="검색 또는 주소 입력" autofocus>
+    </form>
+    <div id="grid" role="list"></div>
+  </main>
+  <script type="module" src="newtab.js"></script>
+</body>
+</html>

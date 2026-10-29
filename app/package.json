@@ -1,0 +1,16 @@
+{
+  "name": "fjord-app",
+  "productName": "Fjord",
+  "version": "0.1.0",
+  "description": "Fjord browser (Electron shell): own tab strip, workspaces and rail on top of Chromium",
+  "main": "src/main.js",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "smoke": "electron test/smoke.js"
+  },
+  "devDependencies": {
+    "electron": "^44.7.2"
+  }
+}
