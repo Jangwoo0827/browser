@@ -1,5 +1,6 @@
 import { Store } from "./store.js";
 import { icon } from "../../ui/icons.js";
+import { glyphColor } from "../../ui/glyph.js";
 
 const $ = (id) => document.getElementById(id);
 let state = { items: [], ui: { collapsed: true, activeId: null } };
@@ -12,11 +13,10 @@ const BUILTINS = [
 const builtin = (id) => BUILTINS.find((b) => b.id === id);
 
 // Letter avatar (also the favicon fallback): colour derived from the name.
-function glyph(name) {
-  const hue = [...name].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
+function glyph(name, url) {
   const el = document.createElement("span");
   el.className = "fj-glyph";
-  el.style.background = `hsl(${hue} 52% 42%)`;
+  el.style.background = glyphColor(name, url);
   el.textContent = (name.trim()[0] || "?").toUpperCase();
   return el;
 }
@@ -28,7 +28,7 @@ function siteGlyph(item) {
   const img = document.createElement("img");
   img.alt = "";
   img.src = new URL("/favicon.ico", item.url).href;
-  img.onerror = () => img.replaceWith(glyph(item.name));
+  img.onerror = () => img.replaceWith(glyph(item.name, item.url));
   wrap.append(img);
   return wrap;
 }

@@ -11,3 +11,10 @@ main { max-width: 640px; margin: var(--fj-space-10) auto; padding: 0 var(--fj-sp
 #add { display: flex; gap: var(--fj-space-4); }
 #add .fj-field { flex: 1; }
 .msg { min-height: 16px; margin: var(--fj-space-3) 0 var(--fj-space-6); color: var(--fj-color-state-danger); }
+
+h1 + .lead + .card, .rail-settings { list-style: none; }
+.rail-settings { padding: var(--fj-space-3); margin-bottom: var(--fj-space-9); }
+.rail-settings .fj-row { cursor: pointer; }
+.rail-settings select { height: var(--fj-size-control-sm); padding: 0 var(--fj-space-4); }
+h1 { margin-top: 0; }
+h1 ~ h1 { margin-top: var(--fj-space-4); }

@@ -1,4 +1,6 @@
 import { icon } from "../../ui/icons.js";
+import { glyphColor } from "../../ui/glyph.js";
+import { loadSettings, mountRail } from "../rail/rail.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -61,11 +63,10 @@ function normalizeUrl(raw) {
 }
 
 // ---- rendering -------------------------------------------------------------
-function glyph(name) {
-  const hue = [...name].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
+function glyph(name, url) {
   const el = document.createElement("span");
   el.className = "fj-glyph fj-glyph--lg";
-  el.style.background = `hsl(${hue} 52% 42%)`;
+  el.style.background = glyphColor(name, url);
   el.textContent = (name.trim()[0] || "?").toUpperCase();
   return el;
 }
@@ -75,7 +76,7 @@ function favicon(item) {
   img.className = "fav";
   img.alt = "";
   img.src = new URL("/favicon.ico", item.url).href;
-  img.onerror = () => img.replaceWith(glyph(item.name));
+  img.onerror = () => img.replaceWith(glyph(item.name, item.url));
   return img;
 }
 
@@ -241,6 +242,22 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
   }
 });
 
+async function showRail() {
+  const settings = await loadSettings();
+  if (!settings.enabled) return;
+  document.body.style["padding" + (settings.side === "right" ? "Right" : "Left")] = "48px";
+  await mountRail(document.body, {
+    side: settings.side,
+    open: async (id) => {
+      const opened = chrome.sidePanel.open({ windowId: (await chrome.windows.getCurrent()).id });
+      const { ui } = await chrome.storage.local.get("ui");
+      await chrome.storage.local.set({ ui: { collapsed: true, ...(ui || {}), activeId: id } });
+      await opened;
+    },
+    settings: () => chrome.runtime.openOptionsPage(),
+  });
+}
+
 (async () => {
   $("searchIcon").innerHTML = icon("search");
   tick();
@@ -248,4 +265,5 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
   await load();
   render();
   $("q").focus();
+  showRail();
 })();
