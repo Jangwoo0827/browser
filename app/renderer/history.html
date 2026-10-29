@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>방문 기록</title>
+  <link rel="stylesheet" href="fjord://shared/tokens.css">
+  <link rel="stylesheet" href="fjord://shared/base.css">
+  <link rel="stylesheet" href="history.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1 class="fj-title-page">방문 기록</h1>
+      <input id="filter" class="fj-field" placeholder="기록에서 검색" spellcheck="false">
+      <button id="clear" class="fj-btn">모두 지우기</button>
+    </header>
+    <div id="list"></div>
+    <p id="empty" class="fj-caption" hidden>방문 기록이 없어요.</p>
+  </main>
+  <script type="module" src="history.js"></script>
+</body>
+</html>

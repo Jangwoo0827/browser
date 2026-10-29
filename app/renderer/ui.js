@@ -105,6 +105,11 @@ function renderTabs() {
 }
 
 function renderToolbar() {
+  const cur = state.tabs.find((t) => t.id === state.activeTab);
+  const zoom = cur && cur.zoom && cur.zoom !== 100 ? cur.zoom : null;
+  $("zoomBadge").hidden = !zoom;
+  if (zoom) $("zoomBadge").textContent = zoom + "%";
+  $("dlDot").hidden = !(state.downloads && state.downloads.active > 0);
   const tab = state.tabs.find((t) => t.id === state.activeTab);
   $("back").disabled = !tab || !tab.canGoBack;
   $("forward").disabled = !tab || !tab.canGoForward;
@@ -135,12 +140,65 @@ $("reload").onclick = () => {
 $("addr").onsubmit = (e) => {
   e.preventDefault();
   const input = $("addrInput");
-  if (input.value.trim()) cmd("navigate", { id: state.activeTab, input: input.value });
+  const picked = sugg.open && sugg.index >= 0 ? sugg.items[sugg.index] : null;
+  const text = picked ? picked.url : input.value;
+  hideSuggestions();
+  if (text.trim()) cmd("navigate", { id: state.activeTab, input: text });
   input.blur();
 };
-$("addrInput").onfocus = () => $("addrInput").select();
-$("addrInput").onkeydown = (e) => { if (e.key === "Escape") { $("addrInput").blur(); renderToolbar(); } };
-$("addrInput").onblur = () => renderToolbar();
+$("findBtn").innerHTML = icon("search");
+$("histBtn").innerHTML = icon("history");
+$("dlBtn").insertAdjacentHTML("afterbegin", icon("download"));
+$("findBtn").onclick = () => cmd("findShow");
+$("histBtn").onclick = () => cmd("openPage", "history");
+$("dlBtn").onclick = () => cmd("downloadsPanel");
+$("zoomBadge").onclick = () => cmd("zoomReset");
+
+// ---- address suggestions (drawn by the overlay view above the page) ----
+const sugg = { items: [], index: -1, open: false, seq: 0 };
+const ROW_H = 44;
+
+function suggRect() {
+  const r = $("addrInput").getBoundingClientRect();
+  return { x: r.left, y: r.bottom + 4, width: r.width, height: sugg.items.length * ROW_H + 12 };
+}
+
+async function refreshSuggestions() {
+  const q = $("addrInput").value.trim();
+  const mine = ++sugg.seq;
+  const items = await cmd("suggest", q);
+  if (mine !== sugg.seq) return; // a newer keystroke already asked
+  sugg.items = items.slice();
+  if (q) sugg.items.push({ type: "search", title: `"${q}" 검색`, url: q });
+  sugg.index = -1;
+  if (!sugg.items.length) return hideSuggestions();
+  sugg.open = true;
+  cmd("overlayShow", { kind: "suggest", rect: suggRect(), payload: { items: sugg.items, index: sugg.index } });
+}
+
+function hideSuggestions() {
+  sugg.seq++;
+  if (sugg.open) cmd("overlayHide");
+  sugg.open = false;
+}
+
+function moveSuggestion(d) {
+  if (!sugg.open || !sugg.items.length) return;
+  const n = sugg.items.length;
+  sugg.index = (sugg.index + d + n) % n;
+  const item = sugg.items[sugg.index];
+  if (item.type !== "search") $("addrInput").value = item.url;
+  cmd("overlayUpdate", { items: sugg.items, index: sugg.index });
+}
+
+$("addrInput").onfocus = () => { $("addrInput").select(); refreshSuggestions(); };
+$("addrInput").oninput = () => refreshSuggestions();
+$("addrInput").onkeydown = (e) => {
+  if (e.key === "Escape") { hideSuggestions(); $("addrInput").blur(); renderToolbar(); }
+  else if (e.key === "ArrowDown") { e.preventDefault(); moveSuggestion(1); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); moveSuggestion(-1); }
+};
+$("addrInput").onblur = () => { setTimeout(hideSuggestions, 200); renderToolbar(); };
 
 // ---- workspace dialog (add / rename) ----
 function openDialog(mode, data) {
