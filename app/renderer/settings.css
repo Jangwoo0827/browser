@@ -11,6 +11,13 @@ header { display: flex; align-items: baseline; gap: var(--fj-space-5); margin-bo
 .row select, .row input.fj-field { flex: none; min-width: 200px; user-select: text; }
 .row input.wide { width: 320px; }
 .row input[type="checkbox"] { flex: none; width: 18px; height: 18px; accent-color: var(--fj-color-accent-primary); }
+.note { margin: 0 0 var(--fj-space-3); }
+.perm-row { display: flex; align-items: center; gap: var(--fj-space-5); padding: var(--fj-space-3) 0; border-top: 1px solid var(--fj-color-border-subtle); }
+.perm-row .o { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 500 13px/18px var(--fj-font); }
+.perm-row .k { flex: none; color: var(--fj-color-text-muted); font: 400 12.5px/18px var(--fj-font); }
+.perm-row select { min-width: 96px; }
+.perm-row .x { flex: none; border: 0; background: transparent; color: var(--fj-color-text-muted); cursor: pointer; font: 500 12px/16px var(--fj-font); }
+.perm-row .x:hover { color: var(--fj-color-state-danger); }
 .keys { display: grid; grid-template-columns: 1fr auto; gap: var(--fj-space-3) var(--fj-space-7); margin: 0; font: 400 13px/18px var(--fj-font); }
 .keys dt { color: var(--fj-color-text-secondary); }
 .keys dd { margin: 0; color: var(--fj-color-text-muted); font-family: ui-monospace, Consolas, monospace; font-size: 12px; text-align: right; }

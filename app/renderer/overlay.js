@@ -6,7 +6,7 @@ let kind = null;
 
 function showOnly(k) {
   kind = k;
-  for (const id of ["suggest", "find", "downloads", "prompt", "tabsearch", "bookmark"]) $(id).hidden = id !== k;
+  for (const id of ["suggest", "find", "downloads", "prompt", "tabsearch", "bookmark", "permission", "siteinfo", "popups"]) $(id).hidden = id !== k;
 }
 
 // ---- suggestions ----
@@ -81,6 +81,70 @@ function renderDownloads(list) {
 }
 $("dlClear").onclick = () => cmd("dlClear");
 
+// ---- permission request ----
+let permId = null;
+const answer = (choice) => cmd("permAnswer", { id: permId, choice });
+$("permDeny").onclick = () => answer("deny");
+$("permOnce").onclick = () => answer("once");
+$("permAllow").onclick = () => answer("allow");
+
+// ---- site info ----
+const STATUS = {
+  secure: ["lock", "lock", "연결이 안전해요 (HTTPS)"],
+  insecure: ["warning", "warn", "보안 연결이 아니에요. 입력한 정보가 노출될 수 있어요."],
+  danger: ["warning", "warn", "인증서 오류를 무시하고 열었어요. 정보를 입력하지 마세요."],
+  file: ["folder", "lock", "내 컴퓨터의 파일이에요."],
+  internal: ["lock", "lock", "Fjord 내부 페이지예요."],
+};
+
+function renderSite({ origin, shown, security, rows }) {
+  const [ico, cls, text] = STATUS[security] || STATUS.internal;
+  $("siteIcon").innerHTML = icon(ico);
+  $("siteIcon").className = cls;
+  $("siteOrigin").textContent = shown || "";
+  $("siteStatus").textContent = text;
+  $("siteRows").replaceChildren(
+    ...rows.map((r) => {
+      const el = document.createElement("div");
+      el.className = "site-row";
+      const n = document.createElement("span");
+      n.className = "n";
+      n.textContent = r.label;
+      const seg = document.createElement("span");
+      seg.className = "seg";
+      for (const [v, t] of [[null, "묻기"], ["allow", "허용"], ["deny", "차단"]]) {
+        const b = document.createElement("button");
+        b.textContent = t;
+        if ((r.value || null) === v) b.className = "on";
+        b.onclick = () => cmd("permSet", { origin, key: r.key, value: v });
+        seg.append(b);
+      }
+      el.append(n, seg);
+      return el;
+    })
+  );
+}
+
+// ---- blocked popups ----
+function renderPopups({ urls }) {
+  $("popList").replaceChildren(
+    ...urls.map((url) => {
+      const li = document.createElement("li");
+      const u = document.createElement("span");
+      u.className = "u";
+      u.textContent = url;
+      u.title = url;
+      const b = document.createElement("button");
+      b.className = "fj-btn";
+      b.textContent = "열기";
+      b.onclick = () => cmd("popupOpen", url);
+      li.append(u, b);
+      return li;
+    })
+  );
+}
+$("popAllow").onclick = () => cmd("popupsAllow");
+
 // ---- bookmark edit ----
 let bmCurrent = null;
 $("bmRemove").onclick = async () => { await cmd("bookmarkRemove", bmCurrent.id); cmd("overlayHide"); };
@@ -153,6 +217,12 @@ window.fjord.on("show", ({ kind: k, payload }) => {
   if (k === "suggest") renderSuggest(payload);
   else if (k === "find") { $("findCount").textContent = ""; $("findInput").focus(); $("findInput").select(); }
   else if (k === "downloads") renderDownloads(payload.downloads);
+  else if (k === "permission") {
+    permId = payload.id;
+    $("permTitle").textContent = `${payload.origin.replace(/^https?:\/\//, "")}에서 ${payload.label} 권한을 요청해요`;
+    $("permSub").textContent = "허용하거나 차단한 선택은 기억돼요. 사이트 정보에서 바꿀 수 있어요.";
+  } else if (k === "siteinfo") renderSite(payload);
+  else if (k === "popups") renderPopups(payload);
   else if (k === "bookmark") {
     bmCurrent = payload.bookmark;
     $("bmName").value = bmCurrent.title;

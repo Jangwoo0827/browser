@@ -20,6 +20,7 @@ const TEST = !!process.env.FJORD_TEST;
 const PARTITION = "persist:fjord";
 const NEWTAB = "fjord://app/newtab.html";
 const { fitBounds } = require("./windowstate");
+const perms = require("./permissions");
 const ROOT = path.join(__dirname, "..");
 const MOUNTS = { app: path.join(ROOT, "renderer"), shared: path.join(ROOT, "..", "extensions", "fjord", "ui") };
 
@@ -35,6 +36,10 @@ let overlayShown = false;
 let overlayKind = null;
 let findSeq = 0;         // find requests issued / answered (the first request after focus moves is sometimes dropped)
 let findAnswered = 0;
+const pendingPerms = []; // permission requests waiting for an answer: { id, tabId, origin, key, label, callback }
+let shownPermId = null;
+const certAllowed = new Set(); // origins the user chose to open despite a certificate error (this run only)
+const lastGesture = new Map(); // tabId -> time of the last click/key in that page (popup blocking)
 let fullscreen = false;  // the window is full screen (F11 or an element asked for it): the chrome is hidden
 let pageFullscreen = false; // ... because the page asked (video player), so leaving that ends it too
 const downloads = [];    // { id, name, path, received, total, state, startedAt }
@@ -86,6 +91,7 @@ function serialize() {
     activeTab: bucket.active,
     tabs: bucket.list.map((t) => ({ ...t, ...(meta.get(t.id) || {}), isNewTab: isNewTab(t.url), shownUrl: errorTarget(t.url) })),
     fullscreen,
+    security: securityOf((bucket.list.find((t) => t.id === bucket.active) || {}).url),
     settings: { showHome: !!store.data.settings.showHome },
     pinned: store.pinned,
     bookmarkBar: {
@@ -161,15 +167,29 @@ function ensureView(tab) {
     m.canGoForward = wc.navigationHistory.canGoForward();
   };
 
+  wc.on("input-event", (_e, ev) => {
+    if (ev.type === "mouseDown" || ev.type === "keyDown" || ev.type === "rawKeyDown" || ev.type === "touchStart") lastGesture.set(tab.id, Date.now());
+  });
   wc.setWindowOpenHandler(({ url }) => {
-    createTab(store.activeWs, url, { afterActive: true });
+    const origin = perms.originOf(wc.getURL());
+    const userAction = Date.now() - (lastGesture.get(tab.id) || 0) < 1500;
+    if (userAction || (origin && store.getPerm(origin, "popups") === "allow")) {
+      createTab(store.activeWs, url, { afterActive: true });
+    } else { // a script opened a window without the user doing anything: hold it back and say so
+      const m = meta.get(tab.id);
+      if (m) {
+        m.blocked = [...(m.blocked || []).filter((u) => u !== url), url].slice(-8);
+        notify();
+      }
+    }
     return { action: "deny" };
   });
+  wc.on("did-start-navigation", (_e, _url, inPlace, isMain) => { if (isMain && !inPlace) dropPending(tab.id); });
   wc.on("page-title-updated", (_e, title) => { tab.title = title; notify(); });
   wc.on("page-favicon-updated", (_e, favicons) => { tab.favicon = favicons[0] || ""; notify(); });
   wc.on("did-start-loading", () => { meta.get(tab.id).loading = true; notify(); });
   wc.on("did-stop-loading", () => { meta.get(tab.id).loading = false; refreshNav(); notify(); });
-  wc.on("did-navigate", (_e, url) => { tab.url = url; refreshNav(); notify(); });
+  wc.on("did-navigate", (_e, url) => { tab.url = url; const m = meta.get(tab.id); if (m) m.blocked = []; refreshNav(); notify(); });
   wc.on("did-navigate-in-page", (_e, url, isMain) => { if (isMain) { tab.url = url; refreshNav(); notify(); } });
   wc.on("render-process-gone", (_e, details) => {
     const m = meta.get(tab.id);
@@ -182,7 +202,8 @@ function ensureView(tab) {
   });
   wc.on("did-fail-load", (_e, code, desc, failedUrl, isMain) => {
     if (!isMain || code === -3 || !failedUrl || failedUrl.startsWith("fjord://")) return; // -3: the navigation was replaced
-    setImmediate(() => showError(wc, "load", failedUrl, { code: String(code), desc }));
+    const cert = code <= -200 && code >= -299; // ERR_CERT_*
+    setImmediate(() => showError(wc, cert ? "cert" : "load", failedUrl, { code: String(code), desc }));
   });
   wc.on("enter-html-full-screen", () => setFullscreen(true, true));
   wc.on("leave-html-full-screen", () => { if (pageFullscreen) setFullscreen(false); });
@@ -240,6 +261,7 @@ function activateTab(tabId) {
   ensureView(found.tab);
   attach(tabId);
   notify();
+  setTimeout(showNextPermission, 0);
 }
 
 function closeTab(tabId) {
@@ -249,6 +271,8 @@ function closeTab(tabId) {
   const idx = bucket.list.findIndex((t) => t.id === tabId);
   if (!isNewTab(found.tab.url)) store.pushClosed({ url: found.tab.url, title: found.tab.title, favicon: found.tab.favicon, ws: wsId, pinned: !!found.tab.pinned });
   bucket.list.splice(idx, 1);
+  dropPending(tabId);
+  lastGesture.delete(tabId);
   const view = views.get(tabId);
   if (view) {
     if (attached === tabId) {
@@ -367,10 +391,14 @@ function ensureOverlay() {
   overlay.setBackgroundColor("#00000000");
   overlay.webContents.loadURL("fjord://app/overlay.html");
   overlay.webContents.on("before-input-event", (event, input) => {
-    if (input.type === "keyDown" && input.key === "Escape") { hideOverlay(); event.preventDefault(); }
+    if (input.type === "keyDown" && input.key === "Escape") {
+      if (overlayKind === "permission" && shownPermId) commands.permAnswer({ id: shownPermId, choice: "dismiss" });
+      else hideOverlay();
+      event.preventDefault();
+    }
     else if (handleShortcut(input)) event.preventDefault();
   });
-  overlay.webContents.on("blur", () => { if (overlayKind === "downloads" || overlayKind === "prompt" || overlayKind === "tabsearch" || overlayKind === "bookmark") hideOverlay(); });
+  overlay.webContents.on("blur", () => { if (overlayKind === "downloads" || overlayKind === "prompt" || overlayKind === "tabsearch" || overlayKind === "bookmark" || overlayKind === "siteinfo" || overlayKind === "popups") hideOverlay(); });
 }
 
 function showOverlay(kind, rect, payload) {
@@ -382,7 +410,7 @@ function showOverlay(kind, rect, payload) {
   overlayKind = kind;
   overlay.setBounds({ x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) });
   overlay.webContents.send("show", { kind, payload });
-  if (kind === "find" || kind === "downloads" || kind === "prompt" || kind === "tabsearch" || kind === "bookmark") overlay.webContents.focus();
+  if (kind === "find" || kind === "downloads" || kind === "prompt" || kind === "tabsearch" || kind === "bookmark" || kind === "siteinfo" || kind === "popups") overlay.webContents.focus();
 }
 
 function hideOverlay() {
@@ -391,8 +419,69 @@ function hideOverlay() {
   overlayShown = false;
   if (overlayKind === "find") activeContents()?.stopFindInPage("clearSelection");
   overlayKind = null;
+  shownPermId = null;
   const v = attached && views.get(attached);
   if (v && !TEST) v.webContents.focus();
+  if (pendingPerms.length) setTimeout(showNextPermission, 0);
+}
+
+// ---- permissions, site info, blocked popups ---------------------------------------------------------
+const popupAnchor = () => ({ x: RAIL_W + 64, y: TAB_H + TOOL_H - 4 });
+
+function dropPending(tabId) {
+  for (let i = pendingPerms.length - 1; i >= 0; i--) {
+    if (pendingPerms[i].tabId !== tabId) continue;
+    const [p] = pendingPerms.splice(i, 1);
+    try { p.callback(false); } catch {}
+    if (shownPermId === p.id) hideOverlay();
+  }
+}
+
+function showNextPermission() {
+  if (!win || overlayShown) return;
+  const p = pendingPerms.find((x) => x.tabId === activeTabId());
+  if (!p) return;
+  shownPermId = p.id;
+  showOverlay("permission", { ...popupAnchor(), width: 372, height: 150 }, { id: p.id, origin: p.origin, label: p.label });
+  shownPermId = p.id; // showOverlay() does not touch it, but hide-then-show paths reset it
+}
+
+function onPermissionRequest(wc, permission, callback, details) {
+  const origin = perms.originOf((details && details.requestingUrl) || wc.getURL());
+  if (!origin) return callback(false); // internal pages and files never get permissions
+  const decision = perms.policy(permission, store.getPerm(origin, permission));
+  if (decision !== "ask") return callback(decision === "allow");
+  let tabId = null;
+  for (const [id, v] of views) if (v.webContents === wc) tabId = id;
+  if (!tabId) return callback(false);
+  pendingPerms.push({ id: newId(), tabId, origin, key: permission, label: perms.label(permission, details), callback });
+  showNextPermission();
+}
+
+function securityOf(url) {
+  if (!url || isNewTab(url) || /^(fjord|about|view-source|devtools|chrome):/i.test(url)) return url && url.startsWith("fjord://app/error.html?kind=cert") ? "danger" : "internal";
+  if (/^file:/i.test(url)) return "file";
+  if (/^https:/i.test(url)) return certAllowed.has(perms.originOf(url)) ? "danger" : "secure";
+  if (/^http:/i.test(url)) return "insecure";
+  return "internal";
+}
+
+function showSiteInfo() {
+  const wc = activeContents();
+  if (!wc) return;
+  const url = wc.getURL();
+  const origin = perms.originOf(url);
+  const keys = origin ? [...perms.SITE_KEYS, ...Object.keys(store.data.permissions[origin] || {}).filter((k) => !perms.SITE_KEYS.includes(k))] : [];
+  const rows = keys.map((k) => ({ key: k, label: perms.label(k), value: store.getPerm(origin, k) }));
+  showOverlay("siteinfo", { ...popupAnchor(), width: 352, height: 92 + rows.length * 40 }, { origin, shown: origin || errorTarget(url) || url, security: securityOf(url), rows });
+}
+
+function showPopups() {
+  const t = store.findTab(activeTabId());
+  const m = t && meta.get(t.tab.id);
+  const urls = (m && m.blocked) || [];
+  if (!urls.length) return;
+  showOverlay("popups", { ...popupAnchor(), x: Math.max(RAIL_W, contentSize().w - 424), width: 400, height: 150 + urls.length * 40 }, { origin: perms.originOf(t.tab.url), urls });
 }
 
 function contentSize() {
@@ -618,10 +707,59 @@ const commands = {
     const url = store.data.settings.homeUrl || NEWTAB;
     commands.navigate({ id: activeTabId(), input: url });
   },
-  retry: (url) => {
-    const wc = activeContents();
+  retry: (url, sender) => {
+    const wc = sender || activeContents();
     if (wc && /^(https?|file):\/\//i.test(String(url || ""))) wc.loadURL(url).catch(() => {});
   },
+  certProceed: (url, sender) => {
+    const origin = /^https:\/\//i.test(String(url || "")) ? perms.originOf(url) : null;
+    if (!origin) return;
+    certAllowed.add(origin); // this run only, never saved
+    (sender || activeContents())?.loadURL(url).catch(() => {});
+  },
+  safeExit: (_arg, sender) => {
+    const wc = sender || activeContents();
+    if (!wc) return;
+    if (wc.navigationHistory.canGoBack()) wc.navigationHistory.goBack();
+    else wc.loadURL(NEWTAB).catch(() => {});
+  },
+  siteInfoShow: () => (overlayKind === "siteinfo" ? hideOverlay() : showSiteInfo()),
+  popupsShow: () => (overlayKind === "popups" ? hideOverlay() : showPopups()),
+  popupOpen: (url) => {
+    const t = store.findTab(activeTabId());
+    const m = t && meta.get(t.tab.id);
+    if (m) m.blocked = (m.blocked || []).filter((u) => u !== url);
+    if (/^(https?|about):/i.test(String(url || ""))) createTab(store.activeWs, url, { afterActive: true });
+    hideOverlay();
+    notify();
+  },
+  popupsAllow: () => {
+    const t = store.findTab(activeTabId());
+    const m = t && meta.get(t.tab.id);
+    const origin = t && perms.originOf(t.tab.url);
+    if (origin) store.setPerm(origin, "popups", "allow");
+    for (const u of (m && m.blocked) || []) if (/^(https?):/i.test(u)) createTab(store.activeWs, u, { afterActive: true });
+    if (m) m.blocked = [];
+    hideOverlay();
+    notify();
+  },
+  permAnswer: ({ id, choice }) => {
+    const i = pendingPerms.findIndex((p) => p.id === id);
+    if (i < 0) return;
+    const [p] = pendingPerms.splice(i, 1);
+    if (choice === "allow" || choice === "deny") store.setPerm(p.origin, p.key, choice);
+    try { p.callback(choice === "allow" || choice === "once"); } catch {}
+    if (overlayKind === "permission") hideOverlay();
+    notify();
+  },
+  permList: () => store.listPerms().map((r) => ({ ...r, label: perms.label(r.key) })),
+  permSet: ({ origin, key, value }) => {
+    store.setPerm(origin, key, value);
+    if (overlayKind === "siteinfo") showSiteInfo();
+    notify();
+    return {};
+  },
+  permClearAll: () => { store.clearPerms(); notify(); },
   fullscreenToggle: () => setFullscreen(!fullscreen),
   print: () => {
     const wc = activeContents();
@@ -785,7 +923,7 @@ ipcMain.handle("cmd", (event, name, arg) => {
   if (!url || !url.startsWith("fjord://")) throw new Error("forbidden");
   const fn = commands[name];
   if (!fn) throw new Error("unknown command " + name);
-  return fn(arg);
+  return fn(arg, event.sender);
 });
 
 // ---- window --------------------------------------------------------------------------------------
@@ -845,13 +983,23 @@ app.whenReady().then(() => {
   const ua = app.userAgentFallback.replace(/\sElectron\/\S+/, "").replace(/\sfjord-app\/\S+/i, "");
   ses.setUserAgent(ua);
   ses.on("will-download", onWillDownload);
+  ses.setPermissionRequestHandler(onPermissionRequest);
+  ses.setPermissionCheckHandler((_wc, permission, requestingOrigin) => {
+    const origin = perms.originOf(requestingOrigin);
+    return !!origin && perms.policy(permission, store.getPerm(origin, permission)) === "allow";
+  });
   registerProtocol(ses);
   registerProtocol(session.defaultSession);
   createWindow();
   applyTheme();
   nativeTheme.on("updated", applyTheme);
-  if (TEST) global.__fjord = { commands, serialize, store, ui: () => ui, win: () => win, views, attached: () => attached, overlay: () => overlay, overlayKind: () => overlayKind, downloads, topH, RAIL_W, handleShortcut, createTab, isFullscreen: () => fullscreen };
+  if (TEST) global.__fjord = { commands, serialize, store, ui: () => ui, win: () => win, views, attached: () => attached, overlay: () => overlay, overlayKind: () => overlayKind, downloads, topH, RAIL_W, handleShortcut, createTab, isFullscreen: () => fullscreen, pendingPerms, certAllowed, securityOf };
   app.on("activate", () => { if (!win) createWindow(); });
+});
+
+app.on("certificate-error", (event, _wc, url, _error, _cert, callback) => {
+  if (certAllowed.has(perms.originOf(url))) { event.preventDefault(); callback(true); } // otherwise the load fails and the error page offers the choice
+  else callback(false);
 });
 
 app.on("before-quit", () => { if (store) { store.data.running = false; store.save(true); } });
