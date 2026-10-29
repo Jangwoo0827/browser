@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>설정</title>
+  <link rel="stylesheet" href="fjord://shared/tokens.css">
+  <link rel="stylesheet" href="fjord://shared/base.css">
+  <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1 class="fj-title-page">설정</h1>
+      <span id="msg" class="fj-caption" role="status"></span>
+    </header>
+
+    <section class="card">
+      <h2 class="fj-title-section">시작할 때</h2>
+      <label class="row"><span class="l">시작 방식<small>종료 전에 비정상 종료됐다면 항상 이전 탭을 복원해요.</small></span>
+        <select class="fj-field" data-key="startup">
+          <option value="restore">이전 탭 복원</option>
+          <option value="newtab">새 탭 열기 (고정 탭만 유지)</option>
+          <option value="home">홈페이지 열기</option>
+        </select></label>
+      <label class="row"><span class="l">홈페이지 주소<small>비워 두면 새 탭(스피드 다이얼)이에요.</small></span>
+        <input class="fj-field wide" data-key="homeUrl" data-text placeholder="https://example.com" spellcheck="false"></label>
+      <label class="row"><span class="l">툴바에 홈 버튼 표시</span><input type="checkbox" data-key="showHome"></label>
+    </section>
+
+    <section class="card">
+      <h2 class="fj-title-section">검색</h2>
+      <label class="row"><span class="l">기본 검색엔진<small>주소창과 우클릭 검색에 쓰여요.</small></span>
+        <select class="fj-field" data-key="searchEngine">
+          <option value="google">Google</option>
+          <option value="naver">네이버</option>
+          <option value="duckduckgo">DuckDuckGo</option>
+          <option value="bing">Bing</option>
+          <option value="custom">직접 입력</option>
+        </select></label>
+      <label class="row" id="customRow"><span class="l">검색 주소<small>검색어 자리에 %s를 넣으세요.</small></span>
+        <input class="fj-field wide" data-key="customSearch" data-text placeholder="https://example.com/search?q=%s" spellcheck="false"></label>
+    </section>
+
+    <section class="card">
+      <h2 class="fj-title-section">모양</h2>
+      <label class="row"><span class="l">테마</span>
+        <select class="fj-field" data-key="theme">
+          <option value="system">시스템 설정 따르기</option>
+          <option value="light">라이트</option>
+          <option value="dark">다크</option>
+        </select></label>
+      <label class="row"><span class="l">북마크 바 표시 <small>Ctrl+Shift+B</small></span><input type="checkbox" data-key="bookmarkBar"></label>
+    </section>
+
+    <section class="card">
+      <h2 class="fj-title-section">다운로드</h2>
+      <div class="row"><span class="l">저장 위치<small id="dir"></small></span>
+        <button id="pickDir" class="fj-btn">폴더 변경</button></div>
+    </section>
+
+    <section class="card">
+      <h2 class="fj-title-section">단축키</h2>
+      <dl class="keys">
+        <dt>새 탭 / 탭 닫기 / 닫은 탭 복원</dt><dd>Ctrl+T · Ctrl+W · Ctrl+Shift+T</dd>
+        <dt>주소창 / 찾기 / 탭 검색</dt><dd>Ctrl+L · Ctrl+F · Ctrl+Shift+A</dd>
+        <dt>북마크 추가 / 북마크 바 / 북마크 관리</dt><dd>Ctrl+D · Ctrl+Shift+B · Ctrl+Shift+O</dd>
+        <dt>기록 / 다운로드 / 설정</dt><dd>Ctrl+H · Ctrl+J · Ctrl+,</dd>
+        <dt>인쇄 / 전체 화면 / 홈</dt><dd>Ctrl+P · F11 · Alt+Home</dd>
+        <dt>확대 / 축소 / 원래대로</dt><dd>Ctrl+= · Ctrl+- · Ctrl+0</dd>
+        <dt>워크스페이스 전환 / 탭 전환</dt><dd>Alt+Q · Ctrl+Tab · Ctrl+1~9</dd>
+      </dl>
+    </section>
+  </main>
+  <script type="module" src="settings.js"></script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 // Fjord (Electron shell): one frameless window = our own chrome UI (rail, tab strip, toolbar) as the bottom view, and
 // every tab is a WebContentsView stacked on top of it in the content area. Workspaces are lists of tabs: switching
 // swaps which list is shown (no extra windows, no tab groups).
-const { app, BaseWindow, WebContentsView, ipcMain, session, protocol, net, nativeTheme, Menu, shell, clipboard, Notification, dialog } = require("electron");
+const { app, BaseWindow, WebContentsView, ipcMain, session, protocol, net, nativeTheme, Menu, shell, clipboard, Notification, dialog, screen } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
 const { pathToFileURL } = require("node:url");
@@ -19,6 +19,7 @@ const topH = () => TAB_H + TOOL_H + (store && store.data.settings.bookmarkBar ? 
 const TEST = !!process.env.FJORD_TEST;
 const PARTITION = "persist:fjord";
 const NEWTAB = "fjord://app/newtab.html";
+const { fitBounds } = require("./windowstate");
 const ROOT = path.join(__dirname, "..");
 const MOUNTS = { app: path.join(ROOT, "renderer"), shared: path.join(ROOT, "..", "extensions", "fjord", "ui") };
 
@@ -34,6 +35,8 @@ let overlayShown = false;
 let overlayKind = null;
 let findSeq = 0;         // find requests issued / answered (the first request after focus moves is sometimes dropped)
 let findAnswered = 0;
+let fullscreen = false;  // the window is full screen (F11 or an element asked for it): the chrome is hidden
+let pageFullscreen = false; // ... because the page asked (video player), so leaving that ends it too
 const downloads = [];    // { id, name, path, received, total, state, startedAt }
 const downloadItems = new Map();
 
@@ -57,7 +60,19 @@ function toUrl(input) {
   if (!s) return NEWTAB;
   if (/^[a-z][a-z0-9+.-]*:\/\//i.test(s) || /^(about|data|file|view-source):/i.test(s)) return s;
   if (/^localhost(:\d+)?([/?#]|$)/i.test(s) || (/^[^\s]+\.[a-z]{2,}([/:?#].*)?$/i.test(s) && !/\s/.test(s))) return "https://" + s;
-  return "https://www.google.com/search?q=" + encodeURIComponent(s);
+  return store ? store.searchUrl(s) : "https://www.google.com/search?q=" + encodeURIComponent(s);
+}
+
+// error.html?kind=...&url=<the address that failed>: the address bar shows the original address, not the error page
+function errorTarget(url) {
+  if (!url || !url.startsWith("fjord://app/error.html")) return null;
+  try { return new URL(url).searchParams.get("url") || null; } catch { return null; }
+}
+
+function showError(wc, kind, failedUrl, extra = {}) {
+  if (wc.isDestroyed()) return;
+  const q = new URLSearchParams({ kind, url: failedUrl || "", ...extra });
+  wc.loadURL("fjord://app/error.html?" + q.toString()).catch(() => {});
 }
 
 const isNewTab = (url) => !url || url.startsWith("fjord://app/newtab");
@@ -69,7 +84,9 @@ function serialize() {
     workspaces: store.workspaces.map((w) => ({ ...w, count: store.tabsOf(w.id).list.length })),
     activeWs: wsId,
     activeTab: bucket.active,
-    tabs: bucket.list.map((t) => ({ ...t, ...(meta.get(t.id) || {}), isNewTab: isNewTab(t.url) })),
+    tabs: bucket.list.map((t) => ({ ...t, ...(meta.get(t.id) || {}), isNewTab: isNewTab(t.url), shownUrl: errorTarget(t.url) })),
+    fullscreen,
+    settings: { showHome: !!store.data.settings.showHome },
     pinned: store.pinned,
     bookmarkBar: {
       visible: !!store.data.settings.bookmarkBar,
@@ -93,8 +110,37 @@ function layout() {
   if (!win) return;
   const [w, h] = win.getContentSize();
   ui.setBounds({ x: 0, y: 0, width: w, height: h });
+  ui.setVisible(!fullscreen);
   const view = attached && views.get(attached);
-  if (view) view.setBounds({ x: RAIL_W, y: topH(), width: Math.max(w - RAIL_W, 0), height: Math.max(h - topH(), 0) });
+  if (!view) return;
+  if (fullscreen) view.setBounds({ x: 0, y: 0, width: w, height: h });
+  else view.setBounds({ x: RAIL_W, y: topH(), width: Math.max(w - RAIL_W, 0), height: Math.max(h - topH(), 0) });
+}
+
+function setFullscreen(on, byPage = false) {
+  if (!win || fullscreen === on) return;
+  fullscreen = on;
+  pageFullscreen = on && byPage;
+  hideOverlay();
+  if (!TEST) win.setFullScreen(on); // the hidden test window is never really switched
+  layout();
+  notify();
+}
+
+function applyTheme() {
+  nativeTheme.themeSource = store.data.settings.theme;
+  if (!win) return;
+  const dark = nativeTheme.shouldUseDarkColors;
+  const color = dark ? "#0f1115" : "#eceef2";
+  try {
+    win.setBackgroundColor(color);
+    if (win.setTitleBarOverlay) win.setTitleBarOverlay({ color, symbolColor: dark ? "#c7ccd6" : "#3a3f4a", height: TAB_H });
+  } catch {}
+}
+
+function downloadDir() {
+  const chosen = store && store.data.settings.downloadDir;
+  return process.env.FJORD_DOWNLOADS || (chosen && fs.existsSync(chosen) ? chosen : app.getPath("downloads"));
 }
 
 // ---- tabs ---------------------------------------------------------------------------------
@@ -125,7 +171,21 @@ function ensureView(tab) {
   wc.on("did-stop-loading", () => { meta.get(tab.id).loading = false; refreshNav(); notify(); });
   wc.on("did-navigate", (_e, url) => { tab.url = url; refreshNav(); notify(); });
   wc.on("did-navigate-in-page", (_e, url, isMain) => { if (isMain) { tab.url = url; refreshNav(); notify(); } });
-  wc.on("render-process-gone", () => { meta.get(tab.id).loading = false; notify(); });
+  wc.on("render-process-gone", (_e, details) => {
+    const m = meta.get(tab.id);
+    if (m) m.loading = false;
+    if (details.reason !== "clean-exit" && !wc.isDestroyed()) {
+      const failed = errorTarget(tab.url) || tab.url;
+      setImmediate(() => showError(wc, "crash", failed));
+    }
+    notify();
+  });
+  wc.on("did-fail-load", (_e, code, desc, failedUrl, isMain) => {
+    if (!isMain || code === -3 || !failedUrl || failedUrl.startsWith("fjord://")) return; // -3: the navigation was replaced
+    setImmediate(() => showError(wc, "load", failedUrl, { code: String(code), desc }));
+  });
+  wc.on("enter-html-full-screen", () => setFullscreen(true, true));
+  wc.on("leave-html-full-screen", () => { if (pageFullscreen) setFullscreen(false); });
   wc.on("audio-state-changed", () => { const m = meta.get(tab.id); if (m) { m.audible = wc.isCurrentlyAudible(); m.muted = wc.audioMuted; notify(); } });
   wc.on("did-navigate", (_e, url) => store.addHistory(url, tab.title));
   wc.on("page-title-updated", (_e, title) => store.updateHistoryTitle(tab.url, title));
@@ -283,7 +343,7 @@ function pageMenu(wc, params) {
     if (items.length) items.push({ type: "separator" });
     const short = params.selectionText.trim().slice(0, 24);
     items.push({ label: "복사", role: "copy" });
-    items.push({ label: `Google에서 "${short}" 검색`, click: () => openTab(toUrl(params.selectionText)) });
+    items.push({ label: `${store.engineName()}에서 "${short}" 검색`, click: () => openTab(toUrl(params.selectionText)) });
   }
   if (!items.length) {
     items.push({ label: "뒤로", enabled: wc.navigationHistory.canGoBack(), click: () => wc.navigationHistory.goBack() },
@@ -291,6 +351,8 @@ function pageMenu(wc, params) {
       { label: "새로고침", click: () => wc.reload() });
   }
   items.push({ type: "separator" },
+    { label: "인쇄…", click: () => commands.print() },
+    { label: "PDF로 저장", click: () => commands.printPdf() },
     { label: "페이지 소스 보기", click: () => openTab("view-source:" + wc.getURL()) },
     { label: "검사", click: () => wc.inspectElement(params.x, params.y) });
   return Menu.buildFromTemplate(items);
@@ -436,7 +498,7 @@ function pushDownloads() {
 }
 
 function onWillDownload(_event, item) {
-  const dir = process.env.FJORD_DOWNLOADS || app.getPath("downloads");
+  const dir = downloadDir();
   fs.mkdirSync(dir, { recursive: true });
   const file = uniquePath(dir, item.getFilename() || "download");
   item.setSavePath(file);
@@ -468,14 +530,18 @@ function handleShortcut(input) {
   const idx = bucket.list.findIndex((t) => t.id === bucket.active);
   const go = (d) => { const n = bucket.list.length; if (n) activateTab(bucket.list[(idx + d + n) % n].id); };
 
-  if (ctrl && !input.shift && !input.alt && key.toLowerCase() === "d") toggleBookmarkForActiveTab();
+  if (key === "F11") commands.fullscreenToggle();
+  else if (ctrl && !input.shift && !input.alt && key.toLowerCase() === "p") commands.print();
+  else if (ctrl && !input.alt && key === ",") commands.openPage("settings");
+  else if (input.alt && key === "Home") commands.home();
+  else if (ctrl && !input.shift && !input.alt && key.toLowerCase() === "d") toggleBookmarkForActiveTab();
   else if (ctrl && input.shift && !input.alt && key.toLowerCase() === "b") commands.barToggle();
   else if (ctrl && input.shift && !input.alt && key.toLowerCase() === "o") commands.openPage("bookmarks");
   else if (ctrl && input.shift && !input.alt && key.toLowerCase() === "t") commands.restoreClosed();
   else if (ctrl && input.shift && !input.alt && key.toLowerCase() === "a") showTabSearch();
-  else if (ctrl && !input.alt && key.toLowerCase() === "t") createTab(store.activeWs, NEWTAB);
+  else if (ctrl && !input.alt && key.toLowerCase() === "t") { setFullscreen(false); createTab(store.activeWs, NEWTAB); }
   else if (ctrl && !input.alt && key.toLowerCase() === "w") closeTab(bucket.active);
-  else if (ctrl && !input.alt && key.toLowerCase() === "l") ui.webContents.send("focus-address");
+  else if (ctrl && !input.alt && key.toLowerCase() === "l") { setFullscreen(false); ui.webContents.send("focus-address"); }
   else if ((ctrl && key.toLowerCase() === "r") || key === "F5") activeContents()?.reload();
   else if (input.alt && key === "ArrowLeft") activeContents()?.navigationHistory.goBack();
   else if (input.alt && key === "ArrowRight") activeContents()?.navigationHistory.goForward();
@@ -534,6 +600,46 @@ const commands = {
     notify();
   },
   dial: () => store.pinned,
+  settingsGet: () => ({ ...store.data.settings, downloadDirEffective: downloadDir() }),
+  settingSet: ({ key, value }) => {
+    const r = store.setSetting(key, value);
+    if (r.error) return r;
+    if (key === "theme") applyTheme();
+    if (key === "bookmarkBar") layout();
+    notify();
+    return r;
+  },
+  pickDownloadDir: async () => {
+    const r = await dialog.showOpenDialog(win, { title: "다운로드 폴더", defaultPath: downloadDir(), properties: ["openDirectory", "createDirectory"] });
+    if (r.canceled || !r.filePaths[0]) return {};
+    return commands.settingSet({ key: "downloadDir", value: r.filePaths[0] });
+  },
+  home: () => {
+    const url = store.data.settings.homeUrl || NEWTAB;
+    commands.navigate({ id: activeTabId(), input: url });
+  },
+  retry: (url) => {
+    const wc = activeContents();
+    if (wc && /^(https?|file):\/\//i.test(String(url || ""))) wc.loadURL(url).catch(() => {});
+  },
+  fullscreenToggle: () => setFullscreen(!fullscreen),
+  print: () => {
+    const wc = activeContents();
+    if (wc && !TEST) wc.print({ printBackground: true });
+  },
+  printPdf: async () => {
+    const wc = activeContents();
+    if (!wc) return {};
+    const data = await wc.printToPDF({ printBackground: true });
+    const dir = downloadDir();
+    fs.mkdirSync(dir, { recursive: true });
+    const base = (wc.getTitle() || "page").replace(/[\\/:*?"<>|]+/g, " ").trim().slice(0, 80) || "page";
+    const file = uniquePath(dir, base + ".pdf");
+    fs.writeFileSync(file, data);
+    downloads.unshift({ id: newId(), name: path.basename(file), path: file, received: data.length, total: data.length, state: "completed", startedAt: Date.now() });
+    pushDownloads();
+    return { path: file };
+  },
   bookmarkToggle: () => toggleBookmarkForActiveTab(),
   bookmarkEditShow: () => {
     const t = store.findTab(activeTabId());
@@ -562,7 +668,7 @@ const commands = {
     ]).popup({ window: win });
   },
   bookmarksExport: (target) => {
-    const dir = process.env.FJORD_DOWNLOADS || app.getPath("downloads");
+    const dir = downloadDir();
     fs.mkdirSync(dir, { recursive: true });
     const file = target || uniquePath(dir, "fjord-bookmarks.html");
     fs.writeFileSync(file, store.exportHtml(), "utf8");
@@ -684,9 +790,9 @@ ipcMain.handle("cmd", (event, name, arg) => {
 
 // ---- window --------------------------------------------------------------------------------------
 function createWindow() {
+  const saved = fitBounds(store.data.window, screen.getAllDisplays().map((d) => d.workArea));
   win = new BaseWindow({
-    width: 1280,
-    height: 800,
+    ...(saved || { width: 1280, height: 800 }),
     minWidth: 720,
     minHeight: 480,
     show: !TEST,
@@ -702,12 +808,24 @@ function createWindow() {
   win.contentView.addChildView(ui);
   ui.webContents.on("before-input-event", (event, input) => { if (handleShortcut(input)) event.preventDefault(); });
   win.on("resize", layout);
+  let boundsTimer = null;
+  const rememberBounds = () => {
+    clearTimeout(boundsTimer);
+    boundsTimer = setTimeout(() => {
+      if (!win || win.isMinimized() || win.isFullScreen()) return;
+      store.data.window = { ...win.getNormalBounds(), maximized: win.isMaximized() };
+      store.save();
+    }, 500);
+  };
+  for (const ev of ["resize", "move", "maximize", "unmaximize"]) win.on(ev, rememberBounds);
+  win.on("leave-full-screen", () => { if (fullscreen) setFullscreen(false); });
+  if (store.data.window && store.data.window.maximized && !TEST) win.maximize();
   win.on("closed", () => { win = null; });
   ui.webContents.loadURL("fjord://app/index.html");
   layout();
 
   const bucket = store.tabsOf(store.activeWs);
-  if (!bucket.list.length) createTab(store.activeWs, NEWTAB);
+  if (!bucket.list.length) createTab(store.activeWs, !store.crashed && store.data.settings.startup === "home" && store.data.settings.homeUrl ? store.data.settings.homeUrl : NEWTAB);
   else {
     if (!bucket.list.some((t) => t.id === bucket.active)) bucket.active = bucket.list[0].id;
     activateTab(bucket.active);
@@ -720,6 +838,8 @@ app.whenReady().then(() => {
   Menu.setApplicationMenu(null);
   nativeTheme.themeSource = "system";
   store = new Store(path.join(process.env.FJORD_USER_DATA || app.getPath("userData"), "state.json"));
+  if (!store.crashed && store.data.settings.startup !== "restore") store.dropUnpinnedTabs(); // after a crash always bring the tabs back
+  store.save(true); // marks this run as "running"; before-quit clears it
   const ses = session.fromPartition(PARTITION);
   // present as a normal Chrome: sites (Google sign-in ...) refuse the "Electron" token
   const ua = app.userAgentFallback.replace(/\sElectron\/\S+/, "").replace(/\sfjord-app\/\S+/i, "");
@@ -728,11 +848,13 @@ app.whenReady().then(() => {
   registerProtocol(ses);
   registerProtocol(session.defaultSession);
   createWindow();
-  if (TEST) global.__fjord = { commands, serialize, store, ui: () => ui, win: () => win, views, attached: () => attached, overlay: () => overlay, overlayKind: () => overlayKind, downloads, topH, RAIL_W, handleShortcut, createTab };
+  applyTheme();
+  nativeTheme.on("updated", applyTheme);
+  if (TEST) global.__fjord = { commands, serialize, store, ui: () => ui, win: () => win, views, attached: () => attached, overlay: () => overlay, overlayKind: () => overlayKind, downloads, topH, RAIL_W, handleShortcut, createTab, isFullscreen: () => fullscreen };
   app.on("activate", () => { if (!win) createWindow(); });
 });
 
-app.on("before-quit", () => store && store.save(true));
+app.on("before-quit", () => { if (store) { store.data.running = false; store.save(true); } });
 app.on("window-all-closed", () => app.quit());
 
 module.exports = { topH, RAIL_W, ICONS };

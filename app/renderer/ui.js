@@ -48,7 +48,7 @@ function renderRail() {
   $("pins").replaceChildren(...state.pinned.map((p) => railButton(`${p.name}\n${p.url}`, siteGlyph(p), () => cmd("openPinned", p.id))));
   $("tools").replaceChildren(
     railButton("광고 차단 (준비 중)", icon("shield"), () => {}, { disabled: true }),
-    railButton("설정 (준비 중)", icon("sliders"), () => {}, { disabled: true })
+    railButton("설정 (Ctrl+,)", icon("sliders"), () => cmd("openPage", "settings"))
   );
 }
 
@@ -130,7 +130,7 @@ function renderToolbar() {
   $("reload").innerHTML = icon(tab && tab.loading ? "close" : "reload");
   $("reload").title = tab && tab.loading ? "중지" : "새로고침 (Ctrl+R)";
   const input = $("addrInput");
-  if (document.activeElement !== input) input.value = !tab || tab.isNewTab ? "" : tab.url;
+  if (document.activeElement !== input) input.value = !tab || tab.isNewTab ? "" : tab.shownUrl || tab.url;
 }
 
 function renderBar() {
@@ -171,6 +171,7 @@ function renderBar() {
 function render(s) {
   state = s;
   renderBar();
+  $("homeBtn").hidden = !(state.settings && state.settings.showHome);
   renderRail();
   renderTabs();
   renderToolbar();
@@ -198,6 +199,8 @@ $("addr").onsubmit = (e) => {
   if (text.trim()) cmd("navigate", { id: state.activeTab, input: text });
   input.blur();
 };
+$("homeBtn").innerHTML = icon("home");
+$("homeBtn").onclick = () => cmd("home");
 $("starBtn").innerHTML = icon("star");
 $("starBtn").onclick = () => cmd("bookmarkEditShow");
 $("findBtn").innerHTML = icon("search");

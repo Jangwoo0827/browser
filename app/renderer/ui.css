@@ -99,6 +99,7 @@ body.has-bar { grid-template-rows: 38px 42px 34px 1fr; }
 #addrInput:focus { background: var(--fj-color-bg-surface); border-color: var(--fj-color-accent-primary); box-shadow: 0 0 0 3px var(--fj-color-accent-soft); }
 
 #top { display: contents; }
+.icon-btn[hidden] { display: none; }
 #bmBar { grid-column: 2; grid-row: 3; display: none; align-items: center; gap: var(--fj-space-1); padding: 0 var(--fj-space-4); background: var(--fj-color-bg-surface); border-bottom: 1px solid var(--fj-color-border-subtle); overflow: hidden; }
 body.has-bar #bmBar { display: flex; }
 .bm { flex: none; display: inline-flex; align-items: center; gap: var(--fj-space-3); max-width: 170px; height: 26px; padding: 0 var(--fj-space-4); border: 0; border-radius: var(--fj-radius-sm); background: transparent; color: var(--fj-color-text-secondary); font: 500 12.5px/18px var(--fj-font); cursor: pointer; -webkit-app-region: no-drag; }

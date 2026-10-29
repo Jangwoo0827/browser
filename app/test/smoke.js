@@ -264,6 +264,109 @@ app.whenReady().then(async () => {
     const bmPage = await waitFor(() => f.serialize().tabs.find((t) => t.url === "fjord://app/bookmarks.html" && t.title === "북마크"));
     check("bookmark manager page opens", !!bmPage);
 
+    // ---- M1c: settings, search engines, home, fullscreen, window state, print, error pages ----
+    const { Store: St, ENGINES } = require("../src/store");
+    const { fitBounds } = require("../src/windowstate");
+    const { nativeTheme } = require("electron");
+    const stFile = path.join(os.tmpdir(), "settings-" + Date.now() + ".json");
+    const st1 = new St(stFile);
+    check("setting validation rejects bad values", st1.setSetting("theme", "neon").error && st1.setSetting("customSearch", "https://x.test/").error && st1.setSetting("homeUrl", "not a url").error && st1.setSetting("nope", 1).error && st1.setSetting("showHome", "yes").error);
+    check("setting values are normalized", st1.setSetting("homeUrl", " example.com ").value === "https://example.com" && st1.setSetting("searchEngine", "naver").value === "naver" && st1.searchUrl("a b").startsWith("https://search.naver.com/search.naver?query=a%20b"));
+    st1.setSetting("customSearch", "https://c.test/?q=%s");
+    st1.setSetting("searchEngine", "custom");
+    check("custom search engine", st1.searchUrl("한글") === "https://c.test/?q=" + encodeURIComponent("한글") && Object.keys(ENGINES).length === 4);
+
+    // unclean shutdown detection: a run that never wrote running=false is a crash
+    st1.save(true);
+    const st2 = new St(stFile);
+    st2.data.running = false; st2.save(true);
+    const st3 = new St(stFile);
+    check("unclean shutdown is detected on the next start", st2.crashed === true && st3.crashed === false);
+    st3.data.tabs = { personal: { active: "a", list: [{ id: "a", url: "https://a.test/", pinned: false }, { id: "b", url: "https://b.test/", pinned: true }] } };
+    st3.dropUnpinnedTabs();
+    check("startup 'new tab' keeps pinned tabs only", st3.data.tabs.personal.list.length === 1 && st3.data.tabs.personal.active === "b");
+
+    check("saved window bounds: tiny sizes grow, off-screen positions are dropped, good ones kept",
+      fitBounds({ x: 10, y: 10, width: 100, height: 100 }, [{ x: 0, y: 0, width: 1920, height: 1040 }]).width === 720 &&
+      fitBounds({ x: 5000, y: 5000, width: 900, height: 700 }, [{ x: 0, y: 0, width: 1920, height: 1040 }]).x === undefined &&
+      fitBounds({ x: 100, y: 80, width: 900, height: 700 }, [{ x: 0, y: 0, width: 1920, height: 1040 }]).x === 100 && fitBounds(null, []) === null);
+
+    // search engine in the real address flow
+    f.commands.settingSet({ key: "searchEngine", value: "naver" });
+    f.commands.newTab("검색어 테스트");
+    await sleep(200);
+    check("address bar search uses the chosen engine", f.serialize().tabs.some((t) => t.url.startsWith("https://search.naver.com/search.naver?query=")));
+    f.commands.settingSet({ key: "searchEngine", value: "google" });
+
+    f.commands.settingSet({ key: "theme", value: "dark" });
+    const darkOk = nativeTheme.themeSource === "dark";
+    f.commands.settingSet({ key: "theme", value: "system" });
+    check("theme setting drives the native theme", darkOk && nativeTheme.themeSource === "system");
+
+    // home button
+    f.commands.settingSet({ key: "showHome", value: true });
+    f.commands.settingSet({ key: "homeUrl", value: base + "/page?home" });
+    await sleep(200);
+    check("home button is enabled by the setting", f.serialize().settings.showHome === true);
+    f.commands.newTab(base + "/page?away");
+    await waitFor(() => f.serialize().tabs.some((t) => t.url.endsWith("?away") && t.title === "Needle Page"), 8000);
+    f.commands.home();
+    const homed = await waitFor(() => f.views.get(f.attached()).webContents.getURL().endsWith("?home"), 6000);
+    check("home goes to the homepage", !!homed, f.views.get(f.attached()).webContents.getURL());
+    f.commands.settingSet({ key: "showHome", value: false });
+    f.commands.settingSet({ key: "homeUrl", value: "" });
+
+    // fullscreen hides the chrome and gives the page the whole window
+    const [cw, ch] = f.win().getContentSize();
+    f.handleShortcut({ type: "keyDown", key: "F11" });
+    await sleep(300);
+    let b = f.views.get(f.attached()).getBounds();
+    check("F11 fullscreen: page fills the window", f.serialize().fullscreen && b.x === 0 && b.y === 0 && b.width === cw && b.height === ch, b);
+    f.handleShortcut({ type: "keyDown", key: "F11" });
+    await sleep(300);
+    b = f.views.get(f.attached()).getBounds();
+    check("F11 again restores the chrome", !f.serialize().fullscreen && b.y === f.topH() && b.x === f.RAIL_W, b);
+
+    // window bounds are remembered
+    f.win().setBounds({ x: 120, y: 90, width: 1010, height: 710 });
+    const near = (v, t) => Math.abs(v - t) <= 4; // the frameless window rounds to the display scale
+    await waitFor(() => f.store.data.window && near(f.store.data.window.width, 1010), 4000);
+    check("window bounds are remembered", f.store.data.window && near(f.store.data.window.width, 1010) && near(f.store.data.window.height, 710) && f.store.data.window.x === 120, f.store.data.window);
+
+    // print to PDF
+    const pdf = await f.commands.printPdf();
+    const pdfBytes = pdf.path ? fs.readFileSync(pdf.path) : Buffer.alloc(0);
+    check("print to PDF writes a real PDF and lists it in downloads", pdfBytes.length > 1000 && pdfBytes.slice(0, 4).toString() === "%PDF" && f.downloads.some((d) => d.path === pdf.path), pdfBytes.length);
+
+    // a failed load shows the error page (original address stays in the address bar)
+    const dead = http.createServer();
+    await new Promise((r) => dead.listen(0, "127.0.0.1", r));
+    const deadPort = dead.address().port;
+    await new Promise((r) => dead.close(r));
+    f.commands.newTab(`http://127.0.0.1:${deadPort}/gone`);
+    const errTab = await waitFor(() => f.serialize().tabs.find((t) => t.url.startsWith("fjord://app/error.html?kind=load") && t.title === "연결할 수 없음"), 10000);
+    check("failed load shows the error page", !!errTab, errTab && errTab.url);
+    check("address bar keeps the original address on the error page", errTab && errTab.shownUrl === `http://127.0.0.1:${deadPort}/gone`, errTab && errTab.shownUrl);
+    if (errTab) { await sleep(400); await shot(f.views.get(errTab.id).webContents, "app-error.png"); }
+
+    // a crashed renderer shows the crash page
+    f.commands.newTab(base + "/page?crash");
+    const crashTab = await waitFor(() => f.serialize().tabs.find((t) => t.url.endsWith("?crash") && t.title === "Needle Page"), 8000);
+    f.views.get(crashTab.id).webContents.forcefullyCrashRenderer();
+    const crashed = await waitFor(() => f.serialize().tabs.find((t) => t.id === crashTab.id && t.url.startsWith("fjord://app/error.html?kind=crash") && t.title === "페이지가 중단됨"), 10000);
+    check("renderer crash shows the crash page", !!crashed, crashed && crashed.url);
+    for (const t of [errTab, crashTab, f.serialize().tabs.find((t) => t.url.endsWith("?home"))]) if (t) f.commands.closeTab(t.id);
+
+    f.commands.openPage("settings");
+    const setTab = await waitFor(() => f.serialize().tabs.find((t) => t.url === "fjord://app/settings.html" && t.title === "설정"));
+    check("settings page opens", !!setTab);
+    if (setTab) {
+      await sleep(400);
+      await shot(f.views.get(setTab.id).webContents, "app-settings.png");
+      const fields = await f.views.get(setTab.id).webContents.executeJavaScript(`document.querySelector('[data-key="searchEngine"]').value + '|' + document.querySelector('[data-key="startup"]').value`);
+      check("settings page shows the current values", fields === "google|restore", fields);
+    }
+
     // workspace prompt (drawn by the overlay, not a modal dialog hidden behind the page)
     f.commands.promptShow({ mode: "add" });
     await sleep(500);
