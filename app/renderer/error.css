@@ -1,0 +1,9 @@
+html, body { height: 100%; }
+body { display: grid; place-items: center; }
+main { max-width: 480px; padding: var(--fj-space-8) var(--fj-space-6); }
+#ico { width: 44px; height: 44px; margin-bottom: var(--fj-space-6); color: var(--fj-color-text-muted); }
+#ico svg { width: 44px; height: 44px; }
+h1 { margin: 0 0 var(--fj-space-4); }
+p { margin: 0 0 var(--fj-space-4); }
+#url, #detail { color: var(--fj-color-text-muted); word-break: break-all; }
+.row { display: flex; gap: var(--fj-space-4); margin-top: var(--fj-space-6); }

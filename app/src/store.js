@@ -13,11 +13,22 @@ const DEFAULT_PINNED = [
   { id: "github", name: "GitHub", url: "https://github.com/" },
 ];
 
+const ENGINES = {
+  google: { name: "Google", url: "https://www.google.com/search?q=%s" },
+  naver: { name: "네이버", url: "https://search.naver.com/search.naver?query=%s" },
+  duckduckgo: { name: "DuckDuckGo", url: "https://duckduckgo.com/?q=%s" },
+  bing: { name: "Bing", url: "https://www.bing.com/search?q=%s" },
+};
+const SETTING_DEFAULTS = { bookmarkBar: true, searchEngine: "google", customSearch: "", startup: "restore", homeUrl: "", showHome: false, theme: "system", downloadDir: "" };
+const ENUMS = { searchEngine: [...Object.keys(ENGINES), "custom"], startup: ["restore", "newtab", "home"], theme: ["system", "light", "dark"] };
+
 class Store {
   constructor(file) {
     this.file = file;
     this.data = this._load();
     this._timer = null;
+    this.crashed = this.data.running === true; // the previous run never reached before-quit
+    this.data.running = true;
   }
 
   _load() {
@@ -35,7 +46,9 @@ class Store {
       closed: Array.isArray(d.closed) ? d.closed : [],
       bookmarks: Array.isArray(d.bookmarks) ? d.bookmarks : [],
       folders: Array.isArray(d.folders) ? d.folders : [],
-      settings: { bookmarkBar: true, ...(d.settings || {}) },
+      settings: { ...SETTING_DEFAULTS, ...(d.settings || {}) },
+      window: d.window && typeof d.window === "object" ? d.window : null,
+      running: d.running === true,
     };
   }
 
@@ -56,6 +69,55 @@ class Store {
     };
     if (now) write();
     else this._timer = setTimeout(write, 400);
+  }
+
+  // ---- settings ----
+  searchUrl(q) {
+    const s = this.data.settings;
+    const custom = s.searchEngine === "custom" && /^https?:\/\/\S*%s\S*$/i.test(s.customSearch || "");
+    const tpl = custom ? s.customSearch : (ENGINES[s.searchEngine] || ENGINES.google).url;
+    return tpl.replace("%s", encodeURIComponent(q));
+  }
+
+  engineName() {
+    const s = this.data.settings;
+    return s.searchEngine === "custom" ? "검색엔진" : (ENGINES[s.searchEngine] || ENGINES.google).name;
+  }
+
+  setSetting(key, value) {
+    if (!(key in SETTING_DEFAULTS)) return { error: "알 수 없는 설정이에요." };
+    if (typeof SETTING_DEFAULTS[key] === "boolean") {
+      if (typeof value !== "boolean") return { error: "켜짐/꺼짐 값이어야 해요." };
+    } else if (typeof value !== "string") {
+      return { error: "문자열이어야 해요." };
+    } else if (ENUMS[key] && !ENUMS[key].includes(value)) {
+      return { error: "허용되지 않는 값이에요." };
+    } else if (key === "customSearch" && value && !/^https?:\/\/\S*%s\S*$/i.test(value.trim())) {
+      return { error: "http(s):// 주소에 검색어 자리 %s가 들어가야 해요." };
+    } else if (key === "homeUrl") {
+      value = value.trim();
+      if (value) {
+        if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(value)) value = "https://" + value;
+        let u = null;
+        try { u = new URL(value); } catch {}
+        if (!u || !/^https?:$/.test(u.protocol) || !u.hostname) return { error: "올바른 주소가 아니에요." };
+      }
+    } else if (key === "downloadDir" && value && !require("node:path").isAbsolute(value)) {
+      return { error: "폴더의 전체 경로여야 해요." };
+    } else if (key === "customSearch") {
+      value = value.trim();
+    }
+    this.data.settings[key] = value;
+    this.save();
+    return { value };
+  }
+
+  // startup "새 탭" / "홈페이지": keep only the pinned tabs of every workspace
+  dropUnpinnedTabs() {
+    for (const t of Object.values(this.data.tabs)) {
+      t.list = t.list.filter((x) => x.pinned);
+      t.active = t.list[0] ? t.list[0].id : null;
+    }
   }
 
   get workspaces() { return this.data.workspaces; }
@@ -263,4 +325,5 @@ class Store {
   }
 }
 
-module.exports = { Store, ICONS };
+module.exports = {
+  ENGINES, Store, ICONS };
