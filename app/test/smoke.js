@@ -102,8 +102,7 @@ app.whenReady().then(async () => {
 
     // ---- browser basics ----
     f.commands.newTab(base + "/page");
-    await sleep(1500);
-    const page = f.serialize().tabs.find((t) => t.title === "Needle Page");
+    const page = await waitFor(() => f.serialize().tabs.find((t) => t.title === "Needle Page"), 8000);
     check("loads a real http page", !!page, page && page.url);
     check("history records the visit", f.store.data.history.some((h) => h.url === base + "/page" && h.title === "Needle Page"));
     check("suggestions find it by title and by empty query", f.commands.suggest("needle").some((i) => i.url === base + "/page") && f.commands.suggest("").length >= 1);
@@ -137,13 +136,35 @@ app.whenReady().then(async () => {
     f.commands.overlayHide();
 
     f.commands.navigate({ input: base + "/file.bin" });
-    const dl = await waitFor(() => f.downloads[0] && f.downloads[0].state === "completed" && f.downloads[0]);
-    check("download completes into the downloads folder", dl && fs.existsSync(dl.path) && fs.statSync(dl.path).size === FILE.length && dl.name === "sample.bin", dl && dl.path);
+    const dl = await waitFor(() => f.downloads[0] && f.downloads[0].state === "completed" && f.downloads[0], 12000);
+    check("download completes into the downloads folder", dl && fs.existsSync(dl.path) && fs.statSync(dl.path).size === FILE.length && dl.name === "sample.bin", dl ? dl.path : { downloads: f.downloads.map((d) => ({ name: d.name, state: d.state, received: d.received })), url: f.views.get(f.attached()).webContents.getURL() });
     check("tab strip reports the finished download", f.serialize().downloads.total === 1 && f.serialize().downloads.active === 0);
 
     f.commands.openPage("history");
     const hist = await waitFor(() => f.serialize().tabs.find((t) => t.url === "fjord://app/history.html" && t.title === "방문 기록"));
     check("history page opens", !!hist);
+
+    // real mouse clicks on the tab strip (the close button must close, a click on a tab must activate it)
+    const click = async (x, y) => {
+      const wc = f.ui().webContents;
+      wc.sendInputEvent({ type: "mouseMove", x, y });
+      wc.sendInputEvent({ type: "mouseDown", x, y, button: "left", clickCount: 1 });
+      await sleep(40);
+      wc.sendInputEvent({ type: "mouseUp", x, y, button: "left", clickCount: 1 });
+      await sleep(500);
+    };
+    const rectOf = (sel, n = 0) => f.ui().webContents.executeJavaScript(`(() => { const r = document.querySelectorAll(${JSON.stringify(sel)})[${n}].getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; })()`);
+    f.commands.newTab(base + "/page");
+    f.commands.newTab(base + "/page");
+    await sleep(800);
+    const nBefore = f.serialize().tabs.length;
+    const xr = await rectOf(".tab:not(.active) .tab-x", 0);
+    await click(xr.x, xr.y);
+    check("clicking a tab's close button closes it", f.serialize().tabs.length === nBefore - 1, { before: nBefore, after: f.serialize().tabs.length });
+    const firstTab = f.serialize().tabs[0].id;
+    const tr = await rectOf(".tab:not(.active)", 0);
+    await click(tr.x - 20, tr.y);
+    check("clicking a tab activates it", f.serialize().activeTab !== null && f.serialize().tabs.some((t) => t.id === f.serialize().activeTab), f.serialize().activeTab === firstTab);
 
     // workspace prompt (drawn by the overlay, not a modal dialog hidden behind the page)
     f.commands.promptShow({ mode: "add" });

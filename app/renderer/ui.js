@@ -85,12 +85,15 @@ function renderTabs() {
       x.className = "tab-x";
       x.setAttribute("aria-label", "탭 닫기");
       x.innerHTML = icon("close");
-      x.onclick = (e) => { e.stopPropagation(); cmd("closeTab", t.id); };
+      // close on mousedown, like activation: the tab's own mousedown re-renders the strip, which would replace this
+      // button before the mouseup and swallow a click
+      x.onmousedown = (e) => { e.stopPropagation(); e.preventDefault(); if (e.button === 0) cmd("closeTab", t.id); };
+      x.onclick = (e) => e.stopPropagation();
       const title = document.createElement("span");
       title.className = "tab-title";
       title.textContent = tabTitle(t);
       el.append(tabIcon(t), title, x);
-      el.onmousedown = (e) => { if (e.button === 0) cmd("activate", t.id); };
+      el.onmousedown = (e) => { if (e.button === 0 && !e.target.closest(".tab-x")) cmd("activate", t.id); };
       el.onauxclick = (e) => { if (e.button === 1) cmd("closeTab", t.id); };
       el.oncontextmenu = (e) => { e.preventDefault(); cmd("tabMenu", t.id); };
       el.ondragstart = (e) => { dragId = t.id; el.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; };
