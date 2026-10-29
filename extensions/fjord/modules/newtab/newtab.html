@@ -4,30 +4,43 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>새 탭</title>
+  <link rel="stylesheet" href="../../ui/tokens.css">
+  <link rel="stylesheet" href="../../ui/base.css">
   <link rel="stylesheet" href="newtab.css">
 </head>
 <body>
+  <header id="top">
+    <img class="logo" src="../../icons/icon32.png" alt="" width="24" height="24">
+    <span class="fj-label wordmark">Fjord</span>
+  </header>
+
   <main>
-    <div id="clock" aria-hidden="true"></div>
-    <form id="search" autocomplete="off">
+    <section id="hero">
+      <div id="clock" class="fj-display" aria-hidden="true"></div>
+      <nav id="chips" aria-label="워크스페이스"></nav>
+    </section>
+
+    <form id="search" autocomplete="off" role="search">
+      <span id="searchIcon"></span>
       <input id="q" type="text" placeholder="검색어 또는 주소 입력" aria-label="검색 또는 주소 입력" autofocus>
     </form>
+
     <div id="grid" role="list"></div>
   </main>
 
   <dialog id="dlg">
     <form method="dialog" id="dlgForm">
-      <h2 id="dlgTitle">사이트 추가</h2>
-      <label>이름<input id="dName" maxlength="40" required></label>
-      <label>주소<input id="dUrl" placeholder="예: claude.ai" required></label>
-      <p id="dMsg" role="status"></p>
+      <h2 id="dlgTitle" class="fj-title-section">사이트 추가</h2>
+      <label class="fj-caption">이름<input id="dName" class="fj-field" maxlength="40" required></label>
+      <label class="fj-caption">주소<input id="dUrl" class="fj-field" placeholder="예: claude.ai" required></label>
+      <p id="dMsg" class="fj-caption" role="status"></p>
       <div class="row">
-        <button value="cancel" type="button" id="dCancel">취소</button>
-        <button value="ok" type="submit" class="primary">저장</button>
+        <button type="button" id="dCancel" class="fj-btn">취소</button>
+        <button type="submit" class="fj-btn fj-btn--primary">저장</button>
       </div>
     </form>
   </dialog>
 
-  <script src="newtab.js"></script>
+  <script type="module" src="newtab.js"></script>
 </body>
 </html>

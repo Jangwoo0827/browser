@@ -1,6 +1,9 @@
+import { icon } from "../../ui/icons.js";
+
 const $ = (id) => document.getElementById(id);
 
-const DEFAULT_DIAL = [
+const DEFAULT_WORKSPACES = [{ id: "personal", name: "개인" }, { id: "work", name: "업무" }]; // same defaults as the workspaces module
+const DEFAULT_TILES = [
   { id: "claude", name: "Claude", url: "https://claude.ai/" },
   { id: "google", name: "Google", url: "https://www.google.com/" },
   { id: "youtube", name: "YouTube", url: "https://www.youtube.com/" },
@@ -9,15 +12,40 @@ const DEFAULT_DIAL = [
   { id: "wikipedia", name: "Wikipedia", url: "https://www.wikipedia.org/" },
 ];
 
-let dial = [];
+let workspaces = DEFAULT_WORKSPACES;
+let activeId = null;   // the workspace whose tabs are expanded in this window
+let current = null;    // the workspace whose speed dial is shown
+let dials = {};        // { [workspaceId]: tile[] }
+let legacy = null;     // pre-workspace single dial, adopted by the first workspace
 let editingId = null;
 let dragId = null;
 
+// ---- data ------------------------------------------------------------------
 async function load() {
-  const { dial: stored } = await chrome.storage.local.get("dial");
-  dial = Array.isArray(stored) ? stored : DEFAULT_DIAL.map((d) => ({ ...d }));
+  const data = await chrome.storage.local.get(["workspaces", "dialByWs", "dial"]);
+  workspaces = Array.isArray(data.workspaces) && data.workspaces.length ? data.workspaces : DEFAULT_WORKSPACES;
+  dials = data.dialByWs && typeof data.dialByWs === "object" ? data.dialByWs : {};
+  legacy = Array.isArray(data.dial) ? data.dial : null;
+  try {
+    const win = await chrome.windows.getCurrent();
+    const map = (await chrome.storage.session.get("active")).active || {};
+    activeId = map[win.id];
+  } catch {
+    activeId = null;
+  }
+  if (!workspaces.some((w) => w.id === activeId)) activeId = workspaces[0].id;
+  if (!workspaces.some((w) => w.id === current)) current = activeId;
 }
-const save = () => chrome.storage.local.set({ dial });
+
+function tiles() {
+  if (Array.isArray(dials[current])) return dials[current];
+  if (current === workspaces[0].id && legacy) return legacy.map((t) => ({ ...t }));
+  return DEFAULT_TILES.map((t) => ({ ...t }));
+}
+async function save(list) {
+  dials[current] = list;
+  await chrome.storage.local.set({ dialByWs: dials });
+}
 const newId = () => "d" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
 function normalizeUrl(raw) {
@@ -32,11 +60,12 @@ function normalizeUrl(raw) {
   }
 }
 
-function avatar(name) {
+// ---- rendering -------------------------------------------------------------
+function glyph(name) {
   const hue = [...name].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
   const el = document.createElement("span");
-  el.className = "avatar";
-  el.style.background = `hsl(${hue} 55% 45%)`;
+  el.className = "fj-glyph fj-glyph--lg";
+  el.style.background = `hsl(${hue} 52% 42%)`;
   el.textContent = (name.trim()[0] || "?").toUpperCase();
   return el;
 }
@@ -46,15 +75,16 @@ function favicon(item) {
   img.className = "fav";
   img.alt = "";
   img.src = new URL("/favicon.ico", item.url).href;
-  img.onerror = () => img.replaceWith(avatar(item.name));
+  img.onerror = () => img.replaceWith(glyph(item.name));
   return img;
 }
 
-function toolButton(text, title, fn) {
+function toolButton(name, title, fn) {
   const b = document.createElement("button");
   b.type = "button";
-  b.textContent = text;
   b.title = title;
+  b.setAttribute("aria-label", title);
+  b.innerHTML = icon(name);
   b.onclick = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -63,13 +93,12 @@ function toolButton(text, title, fn) {
   return b;
 }
 
-function tile(item) {
+function tile(item, list) {
   const a = document.createElement("a");
   a.className = "tile";
   a.href = item.url;
   a.draggable = true;
   a.setAttribute("role", "listitem");
-  a.dataset.id = item.id;
 
   const name = document.createElement("span");
   name.className = "name";
@@ -78,14 +107,12 @@ function tile(item) {
   const tools = document.createElement("span");
   tools.className = "tools";
   tools.append(
-    toolButton("✎", "편집", () => openDialog(item.id)),
-    toolButton("✕", "삭제", async () => {
-      dial = dial.filter((d) => d.id !== item.id);
-      await save();
+    toolButton("edit", "편집", () => openDialog(item.id)),
+    toolButton("close", "삭제", async () => {
+      await save(list.filter((t) => t.id !== item.id));
       render();
     })
   );
-
   a.append(favicon(item), name, tools);
 
   a.ondragstart = (e) => {
@@ -107,11 +134,12 @@ function tile(item) {
   a.ondrop = async (e) => {
     e.preventDefault();
     if (!dragId || dragId === item.id) return;
-    const from = dial.findIndex((d) => d.id === dragId);
-    const to = dial.findIndex((d) => d.id === item.id);
-    const [moved] = dial.splice(from, 1);
-    dial.splice(to, 0, moved);
-    await save();
+    const next = [...list];
+    const from = next.findIndex((t) => t.id === dragId);
+    const to = next.findIndex((t) => t.id === item.id);
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    await save(next);
     render();
   };
   return a;
@@ -121,18 +149,44 @@ function addTile() {
   const b = document.createElement("button");
   b.type = "button";
   b.className = "tile add";
-  b.innerHTML = '<span class="plus">+</span><span>사이트 추가</span>';
+  b.innerHTML = `${icon("plus")}<span>사이트 추가</span>`;
   b.onclick = () => openDialog(null);
   return b;
 }
 
-function render() {
-  $("grid").replaceChildren(...dial.map(tile), addTile());
+function renderChips() {
+  $("chips").replaceChildren(
+    ...workspaces.map((w) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip";
+      b.setAttribute("aria-pressed", String(w.id === current));
+      b.textContent = w.name;
+      if (w.id === activeId) {
+        const live = document.createElement("span");
+        live.className = "live";
+        live.title = "지금 활성인 워크스페이스";
+        b.prepend(live);
+      }
+      b.onclick = () => {
+        current = w.id;
+        render();
+      };
+      return b;
+    })
+  );
 }
 
+function render() {
+  renderChips();
+  const list = tiles();
+  $("grid").replaceChildren(...list.map((t) => tile(t, list)), addTile());
+}
+
+// ---- dialog ----------------------------------------------------------------
 function openDialog(id) {
   editingId = id;
-  const item = dial.find((d) => d.id === id);
+  const item = tiles().find((t) => t.id === id);
   $("dlgTitle").textContent = item ? "사이트 편집" : "사이트 추가";
   $("dName").value = item ? item.name : "";
   $("dUrl").value = item ? item.url : "";
@@ -150,14 +204,16 @@ $("dlgForm").onsubmit = async (e) => {
     $("dMsg").textContent = "올바른 주소가 아니에요 (http/https).";
     return;
   }
-  const item = dial.find((d) => d.id === editingId);
+  const list = tiles();
+  const item = list.find((t) => t.id === editingId);
   if (item) Object.assign(item, { name, url });
-  else dial.push({ id: newId(), name, url });
-  await save();
+  else list.push({ id: newId(), name, url });
+  await save(list);
   $("dlg").close();
   render();
 };
 
+// ---- search + clock ----------------------------------------------------------
 // Address-like input navigates directly; anything else goes to the default search engine.
 $("search").onsubmit = (e) => {
   e.preventDefault();
@@ -175,20 +231,20 @@ $("search").onsubmit = (e) => {
 };
 
 function tick() {
-  const d = new Date();
-  $("clock").textContent = d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false });
+  $("clock").textContent = new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false });
 }
-tick();
-setInterval(tick, 15000);
 
 chrome.storage.onChanged.addListener(async (changes, area) => {
-  if (area === "local" && changes.dial) {
+  if (area === "local" && (changes.dialByWs || changes.dial || changes.workspaces)) {
     await load();
     render();
   }
 });
 
 (async () => {
+  $("searchIcon").innerHTML = icon("search");
+  tick();
+  setInterval(tick, 15000);
   await load();
   render();
   $("q").focus();

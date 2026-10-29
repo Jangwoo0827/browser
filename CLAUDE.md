@@ -21,6 +21,10 @@
 - 광고 차단은 별도 저장소(`../extension/adblock`)의 복사본이다: `node scripts/sync-adblock.mjs`로 동기화(경로 패치 포함). 수정은 원본 저장소에서.
 - 변경 후 `node scripts/check-extension.mjs`(파일 경로/문법 점검) 실행.
 
+## UI 규칙
+
+모든 화면은 `extensions/fjord/ui/tokens.css` 변수(`--fj-*`)와 `base.css` 컴포넌트 클래스만 사용한다(색/간격/반경을 하드코딩하지 않음). 새 컴포넌트는 Figma 파일(`docs/design/README.md`)에 먼저 정의하고 코드와 이름을 맞춘다. 화면 확인은 `node scripts/preview-server.mjs`.
+
 ## 작업 규칙 (이 머신)
 
 - 이 폴더(`browser/`)는 자체 git 저장소이며 원격은 `github.com/Jangwoo0827/browser`. 상위 `VScode` 저장소에는 추적시키지 않는다.

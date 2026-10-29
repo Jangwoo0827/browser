@@ -1,17 +1,13 @@
-:root { color-scheme: light dark; --line: #d6d9df; --muted: #6b7280; --hover: #eceef2; }
-@media (prefers-color-scheme: dark) { :root { --line: #2d3037; --muted: #9aa1ad; --hover: #272a31; } }
-body { font: 14px/1.5 system-ui, "Segoe UI", sans-serif; max-width: 640px; margin: 32px auto; padding: 0 16px; }
-h1 { font-size: 20px; margin: 0 0 4px; }
-.hint { color: var(--muted); font-size: 13px; }
-ul { list-style: none; padding: 0; margin: 16px 0; border: 1px solid var(--line); border-radius: 10px; }
-li { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--line); }
-li:last-child { border-bottom: 0; }
-li .name { font-weight: 600; min-width: 90px; }
-li .url { flex: 1; min-width: 0; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-li:empty::after { content: "항목이 없어요"; }
-button { font: inherit; padding: 4px 10px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: inherit; cursor: pointer; }
-button:hover { background: var(--hover); }
-button.link { border: 0; color: var(--muted); text-decoration: underline; padding: 0; }
-#add { display: flex; gap: 8px; }
-#add input { flex: 1; min-width: 0; padding: 6px 8px; font: inherit; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: inherit; }
-#msg { min-height: 1.5em; color: #d33; font-size: 13px; }
+main { max-width: 640px; margin: var(--fj-space-10) auto; padding: 0 var(--fj-space-6); }
+.lead { margin: var(--fj-space-2) 0 var(--fj-space-6); }
+.card { list-style: none; margin: 0 0 var(--fj-space-6); padding: var(--fj-space-3); background: var(--fj-color-bg-surface); border: 1px solid var(--fj-color-border-subtle); border-radius: var(--fj-radius-lg); }
+.card .fj-row { cursor: default; }
+.card .fj-row:not(:last-child) { border-bottom: 1px solid var(--fj-color-border-subtle); border-radius: 0; }
+.name { font-weight: 500; min-width: 96px; }
+.url { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fj-color-text-muted); font-size: 13px; }
+.empty { padding: var(--fj-space-6); text-align: center; color: var(--fj-color-text-muted); }
+.mini { height: var(--fj-size-control-sm); padding: 0 var(--fj-space-4); }
+.mini:disabled { opacity: .4; cursor: default; }
+#add { display: flex; gap: var(--fj-space-4); }
+#add .fj-field { flex: 1; }
+.msg { min-height: 16px; margin: var(--fj-space-3) 0 var(--fj-space-6); color: var(--fj-color-state-danger); }

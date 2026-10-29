@@ -1,13 +1,18 @@
+import { icon } from "../../ui/icons.js";
+
 const $ = (id) => document.getElementById(id);
 let windowId;
 let editing = null;
 
 const send = (msg) => chrome.runtime.sendMessage({ ...msg, type: "ws:" + msg.type, windowId });
 
-function btn(text, title, fn) {
+function iconButton(name, title, fn) {
   const b = document.createElement("button");
-  b.textContent = text;
+  b.className = "row-btn";
+  b.type = "button";
   b.title = title;
+  b.setAttribute("aria-label", title);
+  b.innerHTML = icon(name);
   b.onclick = (e) => {
     e.stopPropagation();
     fn();
@@ -17,14 +22,15 @@ function btn(text, title, fn) {
 
 function row(ws, activeId) {
   const li = document.createElement("li");
-  if (ws.id === activeId) li.className = "active";
+  li.className = "fj-row" + (ws.id === activeId ? " fj-row--active" : "");
   const dot = document.createElement("span");
   dot.className = "dot";
-  dot.style.background = `var(--${ws.color})`;
+  dot.style.background = `var(--ws-${ws.color}, var(--fj-color-accent-primary))`;
   li.append(dot);
 
   if (editing === ws.id) {
     const input = document.createElement("input");
+    input.className = "fj-field";
     input.value = ws.name;
     input.maxLength = 24;
     input.onclick = (e) => e.stopPropagation();
@@ -45,7 +51,7 @@ function row(ws, activeId) {
   }
 
   const name = document.createElement("span");
-  name.className = "name";
+  name.className = "fj-row__grow";
   name.textContent = ws.name;
   const count = document.createElement("span");
   count.className = "count";
@@ -53,11 +59,11 @@ function row(ws, activeId) {
   li.append(
     name,
     count,
-    btn("✎", "이름 변경", () => {
+    iconButton("edit", "이름 변경", () => {
       editing = ws.id;
       refresh();
     }),
-    btn("✕", "삭제 (탭은 첫 워크스페이스로 이동)", async () => {
+    iconButton("close", "삭제 (탭은 첫 워크스페이스로 이동)", async () => {
       const res = await send({ type: "delete", id: ws.id });
       $("msg").textContent = (res && res.error) || "";
       refresh();
