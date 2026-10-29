@@ -5,6 +5,7 @@ import { glyphColor } from "../../ui/glyph.js";
 import { Store } from "../sidebar/store.js";
 
 export const DEFAULTS = { enabled: true, side: "left" };
+const FALLBACK_WORKSPACES = [{ id: "personal", name: "개인", icon: "home" }, { id: "work", name: "업무", icon: "briefcase" }];
 
 export async function loadSettings() {
   const { railSettings } = await chrome.storage.local.get("railSettings");
@@ -24,9 +25,9 @@ function glyph(name, url) {
   return el;
 }
 
-function button(title, content, onClick) {
+function button(title, content, onClick, active) {
   const b = document.createElement("button");
-  b.className = "rail-btn";
+  b.className = "rail-btn" + (active ? " active" : "");
   b.type = "button";
   b.title = title;
   b.setAttribute("aria-label", title);
@@ -43,12 +44,22 @@ function button(title, content, onClick) {
   return b;
 }
 
-// parent: element to append the rail to. callbacks: { open(id), settings() }. side: "left" | "right".
-export async function mountRail(parent, { open, settings, side }) {
+// parent: element to append the rail to. callbacks: { open(id), workspace(id), settings() }. side: "left" | "right".
+export async function mountRail(parent, { open, workspace, settings, side }) {
   const { items } = await Store.load();
+  const data = await chrome.storage.local.get(["workspaces", "wsActive"]);
+  const workspaces = Array.isArray(data.workspaces) && data.workspaces.length ? data.workspaces : FALLBACK_WORKSPACES;
+  const activeId = workspaces.some((w) => w.id === data.wsActive) ? data.wsActive : workspaces[0].id;
   const rail = document.createElement("aside");
   rail.className = "rail " + (side === "right" ? "right" : "left");
   rail.setAttribute("aria-label", "Fjord 사이드바");
+
+  // Opera-style workspace switcher: one icon per workspace, the active one highlighted
+  const spaces = document.createElement("div");
+  spaces.className = "rail-group";
+  for (const w of workspaces) spaces.append(button(w.name, icon(w.icon || "home"), () => workspace(w.id), w.id === activeId));
+  const topDivider = document.createElement("div");
+  topDivider.className = "rail-divider";
 
   const sites = document.createElement("div");
   sites.className = "rail-group";
@@ -70,7 +81,7 @@ export async function mountRail(parent, { open, settings, side }) {
   for (const b of BUILTINS) tools.append(button(b.name, icon(b.icon), () => open(b.id)));
   tools.append(button("설정", icon("sliders"), () => settings()));
 
-  rail.append(sites, spacer, divider, tools);
+  rail.append(spaces, topDivider, sites, spacer, divider, tools);
   parent.append(rail);
   return { element: rail, destroy: () => rail.remove() };
 }

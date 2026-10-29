@@ -38,6 +38,7 @@
     handle = await mountRail(root, {
       side: settings.side,
       open: (id) => chrome.runtime.sendMessage({ type: "rail:open", id }),
+      workspace: (id) => chrome.runtime.sendMessage({ type: "ws:switch", id }),
       settings: () => chrome.runtime.sendMessage({ type: "rail:settings" }),
     });
     document.documentElement.append(host);
@@ -55,7 +56,7 @@
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
     if (changes.railSettings) refresh();
-    else if (changes.items && host) loadSettings().then(mount); // pinned sites changed: redraw
+    else if ((changes.items || changes.workspaces || changes.wsActive) && host) loadSettings().then(mount); // sites / workspaces changed: redraw
   });
 
   await refresh();

@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
+execFileSync(process.execPath, [join(root, "scripts", "stamp-build.mjs")], { stdio: "pipe" }); // generates the service worker entry (sw.js)
 const ext = join(root, "extensions", "fjord");
 const manifest = JSON.parse(readFileSync(join(ext, "manifest.json"), "utf8"));
 const problems = [];

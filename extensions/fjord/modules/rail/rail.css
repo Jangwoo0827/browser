@@ -20,6 +20,7 @@
   transition: background var(--fj-motion), color var(--fj-motion);
 }
 .rail-btn:hover { background: var(--fj-color-bg-surface-hover); color: var(--fj-color-text-primary); }
+.rail-btn.active { background: var(--fj-color-bg-active); color: var(--fj-color-accent-primary); }
 .rail-glyph { width: 22px; height: 22px; display: grid; place-items: center; }
 .rail-glyph .fj-icon { width: 20px; height: 20px; }
 .rail-glyph img { width: 22px; height: 22px; border-radius: var(--fj-radius-sm); object-fit: contain; }

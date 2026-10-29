@@ -1,10 +1,9 @@
-import { icon } from "../../ui/icons.js";
+import { icon, WORKSPACE_ICONS } from "../../ui/icons.js";
 
 const $ = (id) => document.getElementById(id);
-let windowId;
 let editing = null;
 
-const send = (msg) => chrome.runtime.sendMessage({ ...msg, type: "ws:" + msg.type, windowId });
+const send = (msg) => chrome.runtime.sendMessage({ ...msg, type: "ws:" + msg.type });
 
 function iconButton(name, title, fn) {
   const b = document.createElement("button");
@@ -20,13 +19,28 @@ function iconButton(name, title, fn) {
   return b;
 }
 
+function say(res) {
+  $("msg").textContent = (res && res.error) || "";
+}
+
 function row(ws, activeId) {
   const li = document.createElement("li");
-  li.className = "fj-row" + (ws.id === activeId ? " fj-row--active" : "");
-  const dot = document.createElement("span");
-  dot.className = "dot";
-  dot.style.background = `var(--ws-${ws.color}, var(--fj-color-accent-primary))`;
-  li.append(dot);
+  const active = ws.id === activeId;
+  li.className = "fj-row" + (active ? " fj-row--active" : "");
+
+  // click the icon to cycle through the available icons
+  const ico = document.createElement("button");
+  ico.type = "button";
+  ico.className = "ws-icon";
+  ico.title = "아이콘 바꾸기";
+  ico.innerHTML = icon(ws.icon || "home");
+  ico.onclick = async (e) => {
+    e.stopPropagation();
+    const next = WORKSPACE_ICONS[(WORKSPACE_ICONS.indexOf(ws.icon) + 1) % WORKSPACE_ICONS.length];
+    say(await send({ type: "icon", id: ws.id, icon: next }));
+    refresh();
+  };
+  li.append(ico);
 
   if (editing === ws.id) {
     const input = document.createElement("input");
@@ -39,8 +53,7 @@ function row(ws, activeId) {
         editing = null;
         refresh();
       } else if (e.key === "Enter") {
-        const res = await send({ type: "rename", id: ws.id, name: input.value });
-        $("msg").textContent = (res && res.error) || "";
+        say(await send({ type: "rename", id: ws.id, name: input.value }));
         editing = null;
         refresh();
       }
@@ -56,16 +69,22 @@ function row(ws, activeId) {
   const count = document.createElement("span");
   count.className = "count";
   count.textContent = ws.count;
+  li.append(name, count);
+  if (!active) {
+    li.append(
+      iconButton("arrowRight", "지금 탭을 이 워크스페이스로 옮기기", async () => {
+        say(await send({ type: "moveTab", id: ws.id }));
+        refresh();
+      })
+    );
+  }
   li.append(
-    name,
-    count,
     iconButton("edit", "이름 변경", () => {
       editing = ws.id;
       refresh();
     }),
     iconButton("close", "삭제 (탭은 첫 워크스페이스로 이동)", async () => {
-      const res = await send({ type: "delete", id: ws.id });
-      $("msg").textContent = (res && res.error) || "";
+      say(await send({ type: "delete", id: ws.id }));
       refresh();
     })
   );
@@ -84,12 +103,13 @@ async function refresh() {
 $("add").onsubmit = async (e) => {
   e.preventDefault();
   const res = await send({ type: "add", name: $("name").value });
-  $("msg").textContent = (res && res.error) || "";
+  say(res);
   if (!res || !res.error) $("name").value = "";
   refresh();
 };
 
-(async () => {
-  windowId = (await chrome.windows.getCurrent()).id;
-  refresh();
-})();
+chrome.storage.onChanged.addListener((_c, area) => {
+  if (area === "local") refresh();
+});
+
+refresh();
