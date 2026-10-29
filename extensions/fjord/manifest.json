@@ -14,7 +14,6 @@
     "webNavigation",
     "alarms",
     "tabs",
-    "tabGroups",
     "search",
     "management"
   ],
@@ -22,7 +21,7 @@
     "<all_urls>"
   ],
   "background": {
-    "service_worker": "background.js",
+    "service_worker": "sw.js",
     "type": "module"
   },
   "action": {

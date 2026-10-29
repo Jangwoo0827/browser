@@ -19,6 +19,9 @@ $cfg = Get-Content (Join-Path $repo "browser.config.json") -Raw | ConvertFrom-Js
 
 if (-not $Url) { $Url = $cfg.startUrl }
 
+# service worker entry stamped with a hash of all extension files (Chromium ignores edits inside imported modules otherwise)
+if (Get-Command node -ErrorAction SilentlyContinue) { & node (Join-Path $PSScriptRoot "stamp-build.mjs") | Out-Null }
+
 $exts = @()
 foreach ($e in $cfg.extensions) {
   $p = (Resolve-Path (Join-Path $repo $e)).Path
@@ -36,6 +39,25 @@ $running = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
   Where-Object { $_.Name -in @("chrome.exe", ($cfg.name.ToLower() + ".exe")) -and $_.CommandLine -like "*$($cfg.profileName)*" }
 if (-not $running -and (Get-Command node -ErrorAction SilentlyContinue)) {
   & node (Join-Path $PSScriptRoot "pin-extensions.mjs") $profileDir "nnklkcbakchplbggofbfjijbmfepehnh" "fcoeoabgfenejglbffodgkkbkcdhcgfn" | Out-Null
+  # browser preferences from browser.config.json (e.g. vertical tabs)
+  if ($cfg.browserPrefs) {
+    $patch = ($cfg.browserPrefs | ConvertTo-Json -Depth 10 -Compress)
+    $b64 = "b64:" + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($patch))
+    & node (Join-Path $PSScriptRoot "apply-prefs.mjs") $profileDir $b64 | Out-Null
+  }
+}
+
+# Chromium keeps the extension's service worker registration in the profile and reuses it even when the extension's
+# files (or the worker's script path) changed. When the build stamp changed, drop the cached workers (browser must be closed).
+$swFile = Join-Path (Join-Path (Join-Path $repo "extensions") "fjord") "sw.js"
+if ((Test-Path $swFile) -and -not $running) {
+  $stamp = (Get-Content $swFile -TotalCount 1)
+  $stampFile = Join-Path $profileDir "fjord-sw-stamp.txt"
+  $old = if (Test-Path $stampFile) { (Get-Content $stampFile -TotalCount 1) } else { "" }
+  if ($old -ne $stamp) {
+    Remove-Item (Join-Path $profileDir "Default\Service Worker") -Recurse -Force -ErrorAction SilentlyContinue
+    Set-Content $stampFile $stamp -Encoding ascii
+  }
 }
 
 $testScript = Join-Path $PSScriptRoot "run-test-chromium.ps1"

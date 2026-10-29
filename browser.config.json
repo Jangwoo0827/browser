@@ -3,7 +3,13 @@
   "startUrl": "about:blank",
   "profileName": "profile-app",
   "extensions": [
-    "extensions/fjord"
+    "extensions/fjord",
+    "extensions/theme"
   ],
-  "appId": "Fjord.Browser"
+  "appId": "Fjord.Browser",
+  "browserPrefs": {
+    "vertical_tabs": {
+      "enabled": false
+    }
+  }
 }

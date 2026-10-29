@@ -1,42 +1,42 @@
-// Workspace = a tab group (same title + colour) in each window. Only the active workspace's group is expanded.
-const COLORS = ["blue", "orange", "green", "red", "purple", "cyan", "pink", "yellow", "grey"];
+// Workspaces, Opera style: every workspace is its own browser window, so the tab strip at the top only ever shows that
+// workspace's tabs (no tab groups). Switching focuses the workspace's window (same size/position) and minimizes the
+// previous one. Tab URLs are snapshotted so a workspace comes back after a browser restart.
+const ICONS = ["home", "briefcase", "gamepad", "book", "star", "heart", "code", "globe"];
 const DEFAULTS = [
-  { id: "personal", name: "개인", color: "blue" },
-  { id: "work", name: "업무", color: "orange" },
+  { id: "personal", name: "개인", icon: "home" },
+  { id: "work", name: "업무", icon: "briefcase" },
 ];
+const NEWTAB = chrome.runtime.getURL("modules/newtab/newtab.html");
+const SNAPSHOT_DELAY_MS = 3000;
+const MAX_RESTORED_TABS = 40;
 
-// ---- storage -------------------------------------------------------------
+// ---- storage ----------------------------------------------------------------
 async function getWorkspaces() {
   const { workspaces } = await chrome.storage.local.get("workspaces");
-  return Array.isArray(workspaces) && workspaces.length ? workspaces : DEFAULTS.map((w) => ({ ...w }));
+  const list = Array.isArray(workspaces) && workspaces.length ? workspaces : DEFAULTS.map((w) => ({ ...w }));
+  // workspaces saved by the old tab-group version had colours instead of icons
+  return list.map((w, i) => ({ ...w, icon: ICONS.includes(w.icon) ? w.icon : ICONS[i % ICONS.length] }));
 }
 const saveWorkspaces = (workspaces) => chrome.storage.local.set({ workspaces });
 
-async function sessionGet(key) {
-  return (await chrome.storage.session.get(key))[key] || {};
+async function getActiveId() {
+  const { wsActive } = await chrome.storage.local.get("wsActive");
+  const wss = await getWorkspaces();
+  return wss.some((w) => w.id === wsActive) ? wsActive : wss[0].id;
 }
-async function getActiveId(windowId, wss) {
-  const map = await sessionGet("active");
-  if (wss.some((w) => w.id === map[windowId])) return map[windowId];
-  // after a restart: the workspace whose group is currently expanded, else the first one
-  for (const ws of wss) {
-    const g = await findGroup(windowId, ws);
-    if (g && !g.collapsed) return ws.id;
-  }
-  return wss[0].id;
-}
-async function setActiveId(windowId, id) {
-  const map = await sessionGet("active");
-  map[windowId] = id;
-  await chrome.storage.session.set({ active: map });
-}
-async function rememberTab(windowId, wsId, tabId) {
-  const last = await sessionGet("last");
-  last[`${windowId}:${wsId}`] = tabId;
-  await chrome.storage.session.set({ last });
-}
+const setActiveId = (id) => chrome.storage.local.set({ wsActive: id });
 
-// ---- serial queue: every group mutation goes through here to avoid duplicate groups --------------
+// workspace id -> window id (window ids change on restart, so this lives in session storage)
+async function getMap() {
+  const { wsWindows } = await chrome.storage.session.get("wsWindows");
+  const map = wsWindows || {};
+  const alive = new Set((await chrome.windows.getAll({ windowTypes: ["normal"] })).map((w) => w.id));
+  for (const [ws, id] of Object.entries(map)) if (!alive.has(id)) delete map[ws];
+  return map;
+}
+const setMap = (wsWindows) => chrome.storage.session.set({ wsWindows });
+
+// ---- serial queue so concurrent events cannot create duplicate windows ----------
 let queue = Promise.resolve();
 const enqueue = (fn) => {
   const run = queue.then(fn, fn);
@@ -44,157 +44,203 @@ const enqueue = (fn) => {
   return run;
 };
 
-// ---- helpers -------------------------------------------------------------
-async function isNormalWindow(windowId) {
-  try {
-    return (await chrome.windows.get(windowId)).type === "normal";
-  } catch {
-    return false;
-  }
+// ---- snapshots (restore after restart) ------------------------------------------
+let snapshotTimer = null;
+function scheduleSnapshot() {
+  clearTimeout(snapshotTimer);
+  snapshotTimer = setTimeout(() => enqueue(takeSnapshot), SNAPSHOT_DELAY_MS);
 }
-async function findGroup(windowId, ws) {
-  const gs = await chrome.tabGroups.query({ windowId, title: ws.name });
-  return gs[0];
-}
-async function assignTab(tab, ws) {
-  const g = await findGroup(tab.windowId, ws);
-  if (g) {
-    await chrome.tabs.group({ groupId: g.id, tabIds: [tab.id] });
-    return g.id;
+async function takeSnapshot() {
+  const map = await getMap();
+  const { wsTabs } = await chrome.storage.local.get("wsTabs");
+  const next = { ...(wsTabs || {}) };
+  for (const [ws, windowId] of Object.entries(map)) {
+    const tabs = await chrome.tabs.query({ windowId });
+    const urls = tabs.map((t) => t.url || t.pendingUrl || "").filter((u) => /^https?:\/\//.test(u));
+    next[ws] = urls.slice(0, MAX_RESTORED_TABS);
   }
-  const groupId = await chrome.tabs.group({ tabIds: [tab.id], createProperties: { windowId: tab.windowId } });
-  await chrome.tabGroups.update(groupId, { title: ws.name, color: ws.color });
-  return groupId;
-}
-async function collapseOthers(windowId, wss, activeId) {
-  for (const ws of wss) {
-    if (ws.id === activeId) continue;
-    const g = await findGroup(windowId, ws);
-    if (g && !g.collapsed) await chrome.tabGroups.update(g.id, { collapsed: true });
-  }
+  await chrome.storage.local.set({ wsTabs: next });
 }
 
-// ---- core operations -----------------------------------------------------
-function switchTo(windowId, wsId) {
+// ---- core -----------------------------------------------------------------------
+function boundsOf(win) {
+  if (!win) return {};
+  if (win.state === "maximized" || win.state === "fullscreen") return { state: "maximized" };
+  return { left: win.left, top: win.top, width: win.width, height: win.height };
+}
+
+// like: window to copy size/state from. refocus: window to give focus back to after creating a maximized window.
+async function ensureWindow(wsId, like, refocus) {
+  const map = await getMap();
+  if (map[wsId]) return map[wsId];
+  const { wsTabs } = await chrome.storage.local.get("wsTabs");
+  const urls = (wsTabs && wsTabs[wsId]) || [];
+  const frame = boundsOf(like);
+  // Chromium rejects { state: "maximized", focused: false }, so a maximized window is created focused
+  const created = await chrome.windows.create({
+    url: urls.length ? urls : NEWTAB,
+    ...frame,
+    ...(frame.state ? {} : { focused: false }),
+  });
+  map[wsId] = created.id;
+  await setMap(map);
+  if (frame.state && refocus) await chrome.windows.update(refocus, { focused: true }).catch(() => {});
+  return created.id;
+}
+
+function switchTo(wsId) {
   return enqueue(async () => {
-    if (!(await isNormalWindow(windowId))) return;
     const wss = await getWorkspaces();
-    const target = wss.find((w) => w.id === wsId);
-    if (!target) return;
-    await setActiveId(windowId, wsId);
+    if (!wss.some((w) => w.id === wsId)) return;
+    const map = await getMap();
+    const curId = await getActiveId();
+    const curWin = map[curId] ? await chrome.windows.get(map[curId]).catch(() => null) : null;
 
-    let g = await findGroup(windowId, target);
-    let tabId;
-    if (g) {
-      const tabs = await chrome.tabs.query({ windowId, groupId: g.id });
-      const last = (await sessionGet("last"))[`${windowId}:${wsId}`];
-      tabId = (tabs.find((t) => t.id === last) || tabs[0] || {}).id;
-    }
-    if (tabId === undefined) {
-      const t = await chrome.tabs.create({ windowId, active: true });
-      await assignTab(t, target);
-      tabId = t.id;
-      g = await findGroup(windowId, target);
-    }
-    await chrome.tabs.update(tabId, { active: true });
-    if (g) await chrome.tabGroups.update(g.id, { collapsed: false });
-    await collapseOthers(windowId, wss, wsId);
+    const targetId = await ensureWindow(wsId, curWin);
+    if (targetId === map[curId]) return setActiveId(wsId);
+
+    const target = await chrome.windows.get(targetId);
+    const update = { focused: true, ...boundsOf(curWin) };
+    if (target.state === "minimized" && !update.state) update.state = "normal";
+    await chrome.windows.update(targetId, update);
+    if (map[curId] && map[curId] !== targetId) await chrome.windows.update(map[curId], { state: "minimized" }).catch(() => {});
+    await setActiveId(wsId);
   });
 }
 
-// Put every loose (ungrouped, unpinned) tab of a window into the active workspace.
-function adoptLooseTabs(windowId) {
-  return enqueue(async () => {
-    if (!(await isNormalWindow(windowId))) return;
-    const wss = await getWorkspaces();
-    const activeId = await getActiveId(windowId, wss);
-    const active = wss.find((w) => w.id === activeId);
-    const tabs = await chrome.tabs.query({ windowId, pinned: false });
-    for (const t of tabs.filter((t) => t.groupId === -1)) await assignTab(t, active);
-    await collapseOthers(windowId, wss, activeId);
-  });
-}
-
-async function listState(windowId) {
+async function listState() {
   const wss = await getWorkspaces();
-  const activeId = await getActiveId(windowId, wss);
+  const map = await getMap();
+  const { wsTabs } = await chrome.storage.local.get("wsTabs");
   const out = [];
   for (const ws of wss) {
-    const g = await findGroup(windowId, ws);
-    const count = g ? (await chrome.tabs.query({ windowId, groupId: g.id })).length : 0;
+    const count = map[ws.id] ? (await chrome.tabs.query({ windowId: map[ws.id] })).length : ((wsTabs && wsTabs[ws.id]) || []).length;
     out.push({ ...ws, count });
   }
-  return { workspaces: out, activeId };
+  return { workspaces: out, activeId: await getActiveId() };
 }
 
 async function addWorkspace(name) {
   name = String(name || "").trim();
   const wss = await getWorkspaces();
   if (!name || wss.some((w) => w.name === name)) return { error: "이름이 비었거나 이미 있어요." };
-  const color = COLORS.find((c) => !wss.some((w) => w.color === c)) || COLORS[wss.length % COLORS.length];
-  wss.push({ id: "w" + Date.now().toString(36), name, color });
+  const icon = ICONS.find((i) => !wss.some((w) => w.icon === i)) || ICONS[wss.length % ICONS.length];
+  wss.push({ id: "w" + Date.now().toString(36), name, icon });
   await saveWorkspaces(wss);
   return {};
 }
 
-function renameWorkspace(id, name) {
-  return enqueue(async () => {
-    name = String(name || "").trim();
-    const wss = await getWorkspaces();
-    const ws = wss.find((w) => w.id === id);
-    if (!ws || !name) return { error: "이름이 비었어요." };
-    if (wss.some((w) => w.id !== id && w.name === name)) return { error: "이미 있는 이름이에요." };
-    const oldName = ws.name;
-    ws.name = name;
-    await saveWorkspaces(wss);
-    for (const g of await chrome.tabGroups.query({ title: oldName })) await chrome.tabGroups.update(g.id, { title: name });
-    return {};
-  });
+async function renameWorkspace(id, name) {
+  name = String(name || "").trim();
+  const wss = await getWorkspaces();
+  const ws = wss.find((w) => w.id === id);
+  if (!ws || !name) return { error: "이름이 비었어요." };
+  if (wss.some((w) => w.id !== id && w.name === name)) return { error: "이미 있는 이름이에요." };
+  ws.name = name;
+  await saveWorkspaces(wss);
+  return {};
+}
+
+async function setIcon(id, icon) {
+  const wss = await getWorkspaces();
+  const ws = wss.find((w) => w.id === id);
+  if (!ws || !ICONS.includes(icon)) return { error: "알 수 없는 아이콘이에요." };
+  ws.icon = icon;
+  await saveWorkspaces(wss);
+  return {};
 }
 
 function deleteWorkspace(id) {
   return enqueue(async () => {
     const wss = await getWorkspaces();
     if (wss.length <= 1) return { error: "마지막 워크스페이스는 삭제할 수 없어요." };
-    const ws = wss.find((w) => w.id === id);
-    if (!ws) return {};
     const rest = wss.filter((w) => w.id !== id);
-    const dest = rest[0];
-    for (const g of await chrome.tabGroups.query({ title: ws.name })) {
-      const tabs = await chrome.tabs.query({ groupId: g.id });
-      if (!tabs.length) continue;
-      const destGroup = await findGroup(g.windowId, dest);
-      if (destGroup) {
-        await chrome.tabs.group({ groupId: destGroup.id, tabIds: tabs.map((t) => t.id) });
-      } else {
-        await chrome.tabGroups.update(g.id, { title: dest.name, color: dest.color });
-      }
+    const map = await getMap();
+    const destWin = await ensureWindow(rest[0].id, null);
+    if (map[id]) {
+      // keep the tabs: move them into the first remaining workspace, then drop the empty window
+      const tabs = await chrome.tabs.query({ windowId: map[id] });
+      if (tabs.length) await chrome.tabs.move(tabs.map((t) => t.id), { windowId: destWin, index: -1 });
+      await chrome.windows.remove(map[id]).catch(() => {});
+      delete map[id];
+      await setMap(map);
     }
     await saveWorkspaces(rest);
-    const map = await sessionGet("active");
-    for (const [winId, wsId] of Object.entries(map)) if (wsId === id) map[winId] = dest.id;
-    await chrome.storage.session.set({ active: map });
+    const { wsTabs } = await chrome.storage.local.get("wsTabs");
+    if (wsTabs) {
+      delete wsTabs[id];
+      await chrome.storage.local.set({ wsTabs });
+    }
+    const active = await getActiveId();
+    if (active === id || !rest.some((w) => w.id === active)) await setActiveId(rest[0].id);
     return {};
   });
 }
 
-// ---- events --------------------------------------------------------------
+// move the active tab of the focused workspace window into another workspace
+function moveActiveTab(toId) {
+  return enqueue(async () => {
+    const map = await getMap();
+    const fromId = await getActiveId();
+    if (fromId === toId || !map[fromId]) return { error: "같은 워크스페이스예요." };
+    const [tab] = await chrome.tabs.query({ windowId: map[fromId], active: true });
+    if (!tab) return { error: "옮길 탭이 없어요." };
+    const toWin = await ensureWindow(toId, await chrome.windows.get(map[fromId]), map[fromId]);
+    await chrome.tabs.move(tab.id, { windowId: toWin, index: -1 });
+    return {};
+  });
+}
+
+// ---- adopt the windows that exist at startup ---------------------------------------
+async function adoptStartupWindow() {
+  const map = await getMap();
+  const activeId = await getActiveId();
+  if (Object.keys(map).length) return;
+  const wins = await chrome.windows.getAll({ windowTypes: ["normal"] });
+  if (!wins.length) return;
+  const win = wins.find((w) => w.focused) || wins[0];
+  map[activeId] = win.id;
+  await setMap(map);
+
+  // bring back the workspace's tabs when the window only holds a fresh new tab
+  const { wsTabs } = await chrome.storage.local.get("wsTabs");
+  const saved = (wsTabs && wsTabs[activeId]) || [];
+  const tabs = await chrome.tabs.query({ windowId: win.id });
+  const fresh = tabs.length === 1 && [NEWTAB, "chrome://newtab/", "about:blank", ""].includes(tabs[0].url || tabs[0].pendingUrl || "");
+  if (saved.length && fresh) {
+    await chrome.tabs.update(tabs[0].id, { url: saved[0] });
+    for (const url of saved.slice(1)) await chrome.tabs.create({ windowId: win.id, url, active: false });
+  }
+}
+
+async function init() {
+  const { workspaces } = await chrome.storage.local.get("workspaces");
+  // first run, or workspaces saved by the old tab-group version (no icons): store the normalized list
+  if (!Array.isArray(workspaces) || workspaces.some((w) => !ICONS.includes(w.icon))) await saveWorkspaces(await getWorkspaces());
+  await enqueue(adoptStartupWindow);
+}
+
+// ---- events ----------------------------------------------------------------------
 // Other modules share this service worker's onMessage: only answer our own "ws:" messages.
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (typeof msg?.type !== "string" || !msg.type.startsWith("ws:")) return;
   (async () => {
     switch (msg.type) {
       case "ws:state":
-        return listState(msg.windowId);
+        return listState();
       case "ws:switch":
-        await switchTo(msg.windowId, msg.id);
+        await switchTo(msg.id);
         return {};
       case "ws:add":
         return addWorkspace(msg.name);
       case "ws:rename":
         return renameWorkspace(msg.id, msg.name);
+      case "ws:icon":
+        return setIcon(msg.id, msg.icon);
       case "ws:delete":
         return deleteWorkspace(msg.id);
+      case "ws:moveTab":
+        return moveActiveTab(msg.id);
     }
     return {};
   })().then(sendResponse, (e) => sendResponse({ error: String(e) }));
@@ -203,65 +249,26 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
 chrome.commands.onCommand.addListener(async (command) => {
   if (command !== "next-workspace") return;
-  const win = await chrome.windows.getLastFocused();
   const wss = await getWorkspaces();
-  const activeId = await getActiveId(win.id, wss);
-  const next = wss[(wss.findIndex((w) => w.id === activeId) + 1) % wss.length];
-  await switchTo(win.id, next.id);
+  const activeId = await getActiveId();
+  await switchTo(wss[(wss.findIndex((w) => w.id === activeId) + 1) % wss.length].id);
 });
 
-// Other extensions (e.g. Claude) create a tab and put it into their own group a moment later. Wait for them
-// before adopting a loose tab, otherwise we steal it and their group disappears from under them.
-const ADOPT_DELAY_MS = 1500;
-const later = (fn) => setTimeout(fn, ADOPT_DELAY_MS);
-
-// New tabs join the active workspace.
-chrome.tabs.onCreated.addListener((tab) => {
-  later(() => enqueue(async () => {
-    const t = await chrome.tabs.get(tab.id).catch(() => null);
-    if (!t || t.pinned || t.groupId !== -1 || !(await isNormalWindow(t.windowId))) return;
-    const wss = await getWorkspaces();
-    const activeId = await getActiveId(t.windowId, wss);
-    await assignTab(t, wss.find((w) => w.id === activeId));
-  }));
-});
-
-// A tab dragged into another window joins that window's active workspace.
-chrome.tabs.onAttached.addListener((tabId) => {
-  later(() => enqueue(async () => {
-    const t = await chrome.tabs.get(tabId).catch(() => null);
-    if (!t || t.pinned || t.groupId !== -1 || !(await isNormalWindow(t.windowId))) return;
-    const wss = await getWorkspaces();
-    const activeId = await getActiveId(t.windowId, wss);
-    await assignTab(t, wss.find((w) => w.id === activeId));
-  }));
-});
-
-// Activating a tab of another workspace (search, history, a click on an expanded group) switches the workspace.
-chrome.tabs.onActivated.addListener(({ tabId, windowId }) => {
+// Focusing another workspace window (Alt+Tab, taskbar) makes that workspace the active one.
+chrome.windows.onFocusChanged.addListener((windowId) => {
+  if (windowId === chrome.windows.WINDOW_ID_NONE) return;
   enqueue(async () => {
-    const t = await chrome.tabs.get(tabId).catch(() => null);
-    if (!t || t.groupId === -1) return;
-    const g = await chrome.tabGroups.get(t.groupId).catch(() => null);
-    if (!g) return;
-    const wss = await getWorkspaces();
-    const ws = wss.find((w) => w.name === g.title);
-    if (!ws) return;
-    await rememberTab(windowId, ws.id, tabId);
-    if ((await getActiveId(windowId, wss)) === ws.id) return;
-    await setActiveId(windowId, ws.id);
-    if (g.collapsed) await chrome.tabGroups.update(g.id, { collapsed: false });
-    await collapseOthers(windowId, wss, ws.id);
+    const map = await getMap();
+    const hit = Object.entries(map).find(([, id]) => id === windowId);
+    if (hit && (await getActiveId()) !== hit[0]) await setActiveId(hit[0]);
   });
 });
 
-async function init() {
-  const { workspaces } = await chrome.storage.local.get("workspaces");
-  if (!Array.isArray(workspaces)) await saveWorkspaces(DEFAULTS);
-  for (const w of await chrome.windows.getAll({ windowTypes: ["normal"] })) await adoptLooseTabs(w.id);
+chrome.windows.onRemoved.addListener(() => scheduleSnapshot());
+for (const ev of ["onCreated", "onRemoved", "onUpdated", "onMoved", "onAttached", "onDetached"]) {
+  chrome.tabs[ev].addListener(() => scheduleSnapshot());
 }
+
 chrome.runtime.onInstalled.addListener(init);
 chrome.runtime.onStartup.addListener(init);
-chrome.windows.onCreated.addListener((w) => {
-  if (w.type === "normal") setTimeout(() => adoptLooseTabs(w.id), ADOPT_DELAY_MS);
-});
+init().catch((e) => console.warn("workspaces init:", e));

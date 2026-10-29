@@ -4,7 +4,7 @@ import { loadSettings, mountRail } from "../rail/rail.js";
 
 const $ = (id) => document.getElementById(id);
 
-const DEFAULT_WORKSPACES = [{ id: "personal", name: "개인" }, { id: "work", name: "업무" }]; // same defaults as the workspaces module
+const DEFAULT_WORKSPACES = [{ id: "personal", name: "개인", icon: "home" }, { id: "work", name: "업무", icon: "briefcase" }]; // same defaults as the workspaces module
 const DEFAULT_TILES = [
   { id: "claude", name: "Claude", url: "https://claude.ai/" },
   { id: "google", name: "Google", url: "https://www.google.com/" },
@@ -24,17 +24,11 @@ let dragId = null;
 
 // ---- data ------------------------------------------------------------------
 async function load() {
-  const data = await chrome.storage.local.get(["workspaces", "dialByWs", "dial"]);
+  const data = await chrome.storage.local.get(["workspaces", "dialByWs", "dial", "wsActive"]);
   workspaces = Array.isArray(data.workspaces) && data.workspaces.length ? data.workspaces : DEFAULT_WORKSPACES;
   dials = data.dialByWs && typeof data.dialByWs === "object" ? data.dialByWs : {};
   legacy = Array.isArray(data.dial) ? data.dial : null;
-  try {
-    const win = await chrome.windows.getCurrent();
-    const map = (await chrome.storage.session.get("active")).active || {};
-    activeId = map[win.id];
-  } catch {
-    activeId = null;
-  }
+  activeId = data.wsActive;
   if (!workspaces.some((w) => w.id === activeId)) activeId = workspaces[0].id;
   if (!workspaces.some((w) => w.id === current)) current = activeId;
 }
@@ -162,7 +156,8 @@ function renderChips() {
       b.type = "button";
       b.className = "chip";
       b.setAttribute("aria-pressed", String(w.id === current));
-      b.textContent = w.name;
+      b.innerHTML = icon(w.icon || "home", 14);
+      b.append(w.name);
       if (w.id === activeId) {
         const live = document.createElement("span");
         live.className = "live";
@@ -236,7 +231,7 @@ function tick() {
 }
 
 chrome.storage.onChanged.addListener(async (changes, area) => {
-  if (area === "local" && (changes.dialByWs || changes.dial || changes.workspaces)) {
+  if (area === "local" && (changes.dialByWs || changes.dial || changes.workspaces || changes.wsActive)) {
     await load();
     render();
   }
@@ -248,6 +243,7 @@ async function showRail() {
   document.body.style["padding" + (settings.side === "right" ? "Right" : "Left")] = "48px";
   await mountRail(document.body, {
     side: settings.side,
+    workspace: (id) => chrome.runtime.sendMessage({ type: "ws:switch", id }),
     open: async (id) => {
       const opened = chrome.sidePanel.open({ windowId: (await chrome.windows.getCurrent()).id });
       const { ui } = await chrome.storage.local.get("ui");
