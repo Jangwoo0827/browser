@@ -5,7 +5,6 @@ const $ = (id) => document.getElementById(id);
 const cmd = (name, arg) => window.fjord.cmd(name, arg);
 let state = null;
 let dragId = null;
-let dlgMode = null;
 
 function railButton(title, content, onClick, { active = false, disabled = false, onContext } = {}) {
   const b = document.createElement("button");
@@ -200,26 +199,12 @@ $("addrInput").onkeydown = (e) => {
 };
 $("addrInput").onblur = () => { setTimeout(hideSuggestions, 200); renderToolbar(); };
 
-// ---- workspace dialog (add / rename) ----
-function openDialog(mode, data) {
-  dlgMode = { mode, ...data };
-  $("dlgTitle").textContent = mode === "add" ? "새 워크스페이스" : "워크스페이스 이름 변경";
-  $("dlgInput").value = (data && data.name) || "";
-  $("dlgMsg").textContent = "";
-  $("dlg").showModal();
-  $("dlgInput").focus();
-  $("dlgInput").select();
+// ---- workspace add (rename comes from the context menu) ----
+// Both use a prompt drawn by the overlay view above the page (a <dialog> here would be hidden behind the page).
+function openDialog(mode) {
+  cmd("promptShow", { mode });
 }
-$("dlgCancel").onclick = () => $("dlg").close();
-$("dlgForm").onsubmit = async (e) => {
-  e.preventDefault();
-  const name = $("dlgInput").value;
-  const res = dlgMode.mode === "add" ? await cmd("wsAdd", name) : await cmd("wsRename", { id: dlgMode.id, name });
-  if (res && res.error) { $("dlgMsg").textContent = res.error; return; }
-  $("dlg").close();
-};
 
 window.fjord.on("state", render);
 window.fjord.on("focus-address", () => $("addrInput").focus());
-window.fjord.on("ws-rename", ({ id, name }) => openDialog("rename", { id, name }));
 cmd("state").then(render);

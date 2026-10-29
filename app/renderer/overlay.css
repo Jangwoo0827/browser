@@ -24,6 +24,13 @@ html, body { height: 100%; background: transparent; overflow: hidden; user-selec
 .mini:hover { background: var(--fj-color-bg-surface-hover); color: var(--fj-color-text-primary); }
 .mini .fj-icon { width: 16px; height: 16px; }
 
+/* prompt */
+.prompt { padding: var(--fj-space-6); }
+.prompt h2 { margin: 0 0 var(--fj-space-5); }
+.prompt .fj-field { width: 100%; user-select: text; }
+#promptMsg { min-height: 16px; margin: var(--fj-space-3) 0; color: var(--fj-color-state-danger); }
+.prompt .row { display: flex; justify-content: flex-end; gap: var(--fj-space-4); }
+
 /* downloads */
 #downloads { display: flex; flex-direction: column; padding: var(--fj-space-5); }
 #downloads header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--fj-space-3); }

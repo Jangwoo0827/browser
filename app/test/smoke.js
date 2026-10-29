@@ -145,10 +145,27 @@ app.whenReady().then(async () => {
     const hist = await waitFor(() => f.serialize().tabs.find((t) => t.url === "fjord://app/history.html" && t.title === "방문 기록"));
     check("history page opens", !!hist);
 
+    // workspace prompt (drawn by the overlay, not a modal dialog hidden behind the page)
+    f.commands.promptShow({ mode: "add" });
+    await sleep(500);
+    check("add-workspace prompt opens in the overlay", f.overlayKind() === "prompt");
+    await shot(f.overlay().webContents, "app-prompt.png");
+    const dup = f.commands.promptSubmit({ mode: "add", id: null, value: "개인" });
+    check("a duplicate name keeps the prompt open with an error", dup.error && f.overlayKind() === "prompt", dup.error);
+    const before = f.serialize().workspaces.length;
+    const ok = f.commands.promptSubmit({ mode: "add", id: null, value: "프롬프트" });
+    await sleep(600);
+    check("submitting a new name adds the workspace and closes the prompt", !ok.error && f.serialize().workspaces.length === before + 1 && f.overlayKind() === null);
+    const wsId = f.serialize().workspaces.find((w) => w.name === "프롬프트").id;
+    f.commands.promptShow({ mode: "rename", id: wsId, name: "프롬프트" });
+    await sleep(300);
+    f.commands.promptSubmit({ mode: "rename", id: wsId, value: "이름바꿈" });
+    check("rename through the prompt", f.serialize().workspaces.some((w) => w.id === wsId && w.name === "이름바꿈") && f.overlayKind() === null);
+
     // persistence
     f.store.save(true);
     const saved = JSON.parse(fs.readFileSync(path.join(process.env.FJORD_USER_DATA, "state.json"), "utf8"));
-    check("state is written to disk", saved.workspaces.length === 3 && Object.keys(saved.tabs).length >= 2);
+    check("state is written to disk", saved.workspaces.length >= 4 && saved.workspaces.some((w) => w.name === "이름바꿈") && Object.keys(saved.tabs).length >= 2);
 
     f.commands.wsSwitch("personal");
     await sleep(1000);

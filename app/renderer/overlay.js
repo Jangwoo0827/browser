@@ -6,7 +6,7 @@ let kind = null;
 
 function showOnly(k) {
   kind = k;
-  for (const id of ["suggest", "find", "downloads"]) $(id).hidden = id !== k;
+  for (const id of ["suggest", "find", "downloads", "prompt"]) $(id).hidden = id !== k;
 }
 
 // ---- suggestions ----
@@ -81,11 +81,28 @@ function renderDownloads(list) {
 }
 $("dlClear").onclick = () => cmd("dlClear");
 
+// ---- prompt ----
+let promptData = null;
+$("promptCancel").onclick = () => cmd("overlayHide");
+$("prompt").onsubmit = async (e) => {
+  e.preventDefault();
+  const res = await cmd("promptSubmit", { mode: promptData.mode, id: promptData.id, value: $("promptInput").value });
+  if (res && res.error) $("promptMsg").textContent = res.error;
+};
+
 window.fjord.on("show", ({ kind: k, payload }) => {
   showOnly(k);
   if (k === "suggest") renderSuggest(payload);
   else if (k === "find") { $("findCount").textContent = ""; $("findInput").focus(); $("findInput").select(); }
   else if (k === "downloads") renderDownloads(payload.downloads);
+  else if (k === "prompt") {
+    promptData = payload;
+    $("promptTitle").textContent = payload.title;
+    $("promptInput").value = payload.value;
+    $("promptMsg").textContent = "";
+    $("promptInput").focus();
+    $("promptInput").select();
+  }
 });
 window.fjord.on("found", ({ active, total }) => { $("findCount").textContent = total ? `${active}/${total}` : $("findInput").value ? "없음" : ""; });
 window.fjord.on("downloads", renderDownloads);
