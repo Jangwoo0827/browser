@@ -5,6 +5,8 @@ const os = require("node:os");
 const path = require("node:path");
 const fs = require("node:fs");
 process.env.FJORD_USER_DATA = fs.mkdtempSync(path.join(os.tmpdir(), "fjord-smoke-"));
+process.env.FJORD_DOWNLOADS = fs.mkdtempSync(path.join(os.tmpdir(), "fjord-dl-"));
+const http = require("node:http");
 
 const { app } = require("electron");
 require("../src/main.js");
@@ -32,15 +34,40 @@ async function shot(webContents, file) {
   throw lastError || new Error("empty capture");
 }
 
+// local server: a page with a known word count and a downloadable file
+const FILE = Buffer.alloc(4096, 7);
+const server = http.createServer((req, res) => {
+  if (req.url === "/file.bin") {
+    res.writeHead(200, { "content-type": "application/octet-stream", "content-disposition": 'attachment; filename="sample.bin"', "content-length": FILE.length });
+    res.end(FILE);
+  } else {
+    res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    res.end("<title>Needle Page</title><body><p>needle one</p><p>another needle</p><p>last needle here</p>");
+  }
+});
+
+async function waitFor(fn, ms = 6000) {
+  const end = Date.now() + ms;
+  while (Date.now() < end) { const v = await fn(); if (v) return v; await sleep(100); }
+  return null;
+}
+
 app.whenReady().then(async () => {
   try {
+    await new Promise((r) => server.listen(0, "127.0.0.1", r));
+    const base = `http://127.0.0.1:${server.address().port}`;
     await sleep(2500);
     const f = global.__fjord;
+    // find-in-page and capturing need a shown window: fully transparent, off the taskbar, unfocused -> nothing visible
+    f.win().setSkipTaskbar(true);
+    f.win().setOpacity(0);
+    f.win().showInactive();
+    await sleep(800);
     let s = f.serialize();
     check("starts with a new tab in the first workspace", s.tabs.length === 1 && s.tabs[0].isNewTab && s.activeWs === "personal", { ws: s.activeWs, tabs: s.tabs.length });
 
     f.commands.newTab("data:text/html,<title>Hello Fjord</title><body style='background:%23264;color:%23fff;font:32px sans-serif'><h1>Hello Fjord</h1>");
-    await sleep(1200);
+    await waitFor(() => f.serialize().tabs.some((t) => t.title === "Hello Fjord"));
     s = f.serialize();
     check("opening a page adds an active tab with its title", s.tabs.length === 2 && s.tabs[1].title === "Hello Fjord" && s.activeTab === s.tabs[1].id, s.tabs.map((t) => t.title || (t.isNewTab ? "(new tab)" : t.url)));
 
@@ -73,6 +100,51 @@ app.whenReady().then(async () => {
     s = f.serialize();
     check("adding a workspace switches to it with a fresh tab", !addRes.error && s.workspaces.length === 3 && s.tabs.length === 1);
 
+    // ---- browser basics ----
+    f.commands.newTab(base + "/page");
+    await sleep(1500);
+    const page = f.serialize().tabs.find((t) => t.title === "Needle Page");
+    check("loads a real http page", !!page, page && page.url);
+    check("history records the visit", f.store.data.history.some((h) => h.url === base + "/page" && h.title === "Needle Page"));
+    check("suggestions find it by title and by empty query", f.commands.suggest("needle").some((i) => i.url === base + "/page") && f.commands.suggest("").length >= 1);
+
+    const wc = f.views.get(f.attached()).webContents;
+    f.commands.findShow();
+    await sleep(500);
+    check("find bar overlay opens", f.overlayKind() === "find");
+    // (the test window is never activated, so Chromium may drop the first find after focus moved: ask again once)
+    let r = null;
+    for (let attempt = 0; attempt < 3 && !r; attempt++) {
+      const found = new Promise((resolve) => wc.once("found-in-page", (_e, res) => resolve(res)));
+      await f.commands.find({ text: "needle", next: attempt > 0 });
+      r = await Promise.race([found, sleep(1500).then(() => null)]);
+    }
+    check("find in page counts matches", r && r.matches === 3, r && r.matches);
+    f.commands.overlayHide();
+    check("overlay hides", f.overlayKind() === null);
+
+    f.handleShortcut({ type: "keyDown", key: "=", control: true });
+    f.handleShortcut({ type: "keyDown", key: "=", control: true });
+    await sleep(300);
+    check("Ctrl+= zooms in (120%)", wc.getZoomLevel() === 1 && f.serialize().tabs.find((t) => t.id === f.serialize().activeTab).zoom === 120, wc.getZoomLevel());
+    f.handleShortcut({ type: "keyDown", key: "0", control: true });
+    await sleep(200);
+    check("Ctrl+0 resets zoom", wc.getZoomLevel() === 0);
+
+    f.commands.overlayShow({ kind: "suggest", rect: { x: 100, y: 90, width: 500, height: 120 }, payload: { items: [{ type: "history", title: "t", url: "https://example.com/" }], index: 0 } });
+    await sleep(400);
+    check("suggestion overlay opens", f.overlayKind() === "suggest");
+    f.commands.overlayHide();
+
+    f.commands.navigate({ input: base + "/file.bin" });
+    const dl = await waitFor(() => f.downloads[0] && f.downloads[0].state === "completed" && f.downloads[0]);
+    check("download completes into the downloads folder", dl && fs.existsSync(dl.path) && fs.statSync(dl.path).size === FILE.length && dl.name === "sample.bin", dl && dl.path);
+    check("tab strip reports the finished download", f.serialize().downloads.total === 1 && f.serialize().downloads.active === 0);
+
+    f.commands.openPage("history");
+    const hist = await waitFor(() => f.serialize().tabs.find((t) => t.url === "fjord://app/history.html" && t.title === "방문 기록"));
+    check("history page opens", !!hist);
+
     // persistence
     f.store.save(true);
     const saved = JSON.parse(fs.readFileSync(path.join(process.env.FJORD_USER_DATA, "state.json"), "utf8"));
@@ -80,12 +152,17 @@ app.whenReady().then(async () => {
 
     f.commands.wsSwitch("personal");
     await sleep(1000);
-    // capturing needs a shown window: make it fully transparent, off the taskbar and unfocused so nothing is visible
     const w = f.win();
-    w.setSkipTaskbar(true);
-    w.setOpacity(0);
-    w.showInactive();
-    await sleep(1200);
+    // popups: suggestions and the downloads panel
+    f.commands.overlayShow({ kind: "suggest", rect: { x: 200, y: 84, width: 640, height: 4 * 44 + 12 }, payload: { index: 1, items: [
+      { type: "history", title: "Needle Page", url: base + "/page" }, { type: "pin", title: "GitHub", url: "https://github.com/" },
+      { type: "history", title: "Hacker News", url: "https://news.ycombinator.com/" }, { type: "search", title: '"needle" 검색', url: "needle" } ] } });
+    await sleep(900);
+    await shot(f.overlay().webContents, "app-suggest.png");
+    f.commands.downloadsPanel();
+    await sleep(900);
+    await shot(f.overlay().webContents, "app-downloads.png");
+    f.commands.overlayHide();
     const uiSize = await shot(f.ui().webContents, "app-ui.png");
     const viewSize = await shot(f.views.get(f.attached()).webContents, "app-content.png");
     w.hide();
@@ -95,5 +172,6 @@ app.whenReady().then(async () => {
   }
   const failed = checks.filter((c) => !c.ok).length;
   console.log(failed ? `\n${failed} check(s) FAILED` : `\nall ${checks.length} checks passed`);
+  server.close();
   app.exit(failed ? 1 : 0);
 });

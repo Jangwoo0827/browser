@@ -15,10 +15,20 @@ the extension build (`extensions/fjord`, `scripts/launch.ps1`), which keeps work
 - Sites see a normal Chrome user agent (the `Electron/...` token is removed).
 - Shortcuts: Ctrl+T/W/L/R/Tab, Ctrl+1..9, Alt+←/→, Alt+Q, F12.
 
+## Browser basics (stage 2)
+- **Overlay view**: a transparent `WebContentsView` above the page hosts popups the bottom UI view cannot draw over the page:
+  address suggestions, find bar, downloads panel (`renderer/overlay.*`). Only popup-sized bounds are covered; it hides on tab switch / Esc.
+- Address bar: suggestions from pinned sites + history (`Store.suggest`), arrow keys + Enter, "search" row.
+- History (`Ctrl+H` → `fjord://app/history.html`, search + clear), saved with the state (max 5000 URLs).
+- Find in page (`Ctrl+F`), zoom (`Ctrl+=`/`-`/`0`, badge in the toolbar), downloads (auto-save to Downloads, `Ctrl+J` panel, open / show in folder / cancel, native notification), page context menu (links, images, selection, editable fields, view source, inspect).
+- Known quirk: Chromium searches the focused frame, so `find` focuses the page for the request and hands focus back to the find box when results arrive (`found-in-page`); the request is retried once when no answer comes.
+
 ## Run / test
 - `cd app && npm install && npm start`; desktop shortcut: `scripts/make-app-shortcut.ps1` ("Fjord (app)").
-- `npm run smoke` runs the real app with a hidden window (11 checks: tabs, workspaces, move/close, persistence) and writes
-  `logs/app-ui.png` / `logs/app-content.png`. Screenshots use an invisible (opacity 0, off-taskbar) window; nothing appears on screen.
+- `npm run smoke` runs the real app against a local HTTP server (23 checks: tabs, workspaces, move/close, history, suggestions, find,
+  zoom, download, popups, persistence) and writes `logs/app-ui.png`, `app-content.png`, `app-suggest.png`, `app-downloads.png`.
+  The window is shown invisibly (opacity 0, off-taskbar, not activated); nothing appears on screen, but because it is never activated
+  Chromium may drop the first find request, so the test asks up to three times.
 
 ## What you give up compared to the Chromium build (honest list)
 - **Chrome extensions**: Electron implements only a small part of the extension API, so the Claude extension (side panel, tab
@@ -29,6 +39,6 @@ the extension build (`extensions/fjord`, `scripts/launch.ps1`), which keeps work
 
 ## Roadmap
 1. Done: shell, tabs, workspaces, rail, new tab page, persistence, smoke test.
-2. Browser basics: downloads, find in page (Ctrl+F), zoom, context menu (copy/open link), permissions prompts, history/bookmarks, settings page, dark/light switch.
+2. Done: downloads, find, zoom, context menu, history, address suggestions. Still open: permission prompts, bookmarks, settings page (search engine, dark/light), tab restore (Ctrl+Shift+T), tab drag out/in.
 3. Built-ins: ad blocking (lists + `webRequest`), Claude side panel (claude.ai in a right-hand view), pinned-site panel.
 4. Packaging: electron-builder installer, branded exe icon, GitHub Releases + auto-update.

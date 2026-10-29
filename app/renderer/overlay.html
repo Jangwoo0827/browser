@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>overlay</title>
+  <link rel="stylesheet" href="fjord://shared/tokens.css">
+  <link rel="stylesheet" href="fjord://shared/base.css">
+  <link rel="stylesheet" href="overlay.css">
+</head>
+<body>
+  <!-- address suggestions -->
+  <div id="suggest" class="card" hidden><ul id="suggestList"></ul></div>
+
+  <!-- find in page -->
+  <div id="find" class="card find" hidden>
+    <input id="findInput" class="fj-field" placeholder="페이지에서 찾기" spellcheck="false" autocomplete="off">
+    <span id="findCount" class="fj-caption"></span>
+    <button id="findPrev" class="mini" title="이전 (Shift+Enter)" aria-label="이전"></button>
+    <button id="findNext" class="mini" title="다음 (Enter)" aria-label="다음"></button>
+    <button id="findClose" class="mini" title="닫기 (Esc)" aria-label="닫기"></button>
+  </div>
+
+  <!-- downloads -->
+  <div id="downloads" class="card" hidden>
+    <header><h2 class="fj-title-section">다운로드</h2><button id="dlClear" class="fj-btn fj-btn--ghost">목록 지우기</button></header>
+    <ul id="dlList"></ul>
+    <p id="dlEmpty" class="fj-caption empty">받은 파일이 없어요.</p>
+  </div>
+
+  <script type="module" src="overlay.js"></script>
+</body>
+</html>

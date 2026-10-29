@@ -19,6 +19,8 @@ const PATHS = {
   heart: '<path d="M20.8 5.6a5.5 5.5 0 0 0-7.8 0L12 6.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 22l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/>',
   code: '<path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/>',
   globe: '<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/>',
+  download: '<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>',
+  history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"/>',
   arrowLeft: '<path d="M19 12H5M11 6l-6 6 6 6"/>',
   arrowRight: '<path d="M5 12h14M13 6l6 6-6 6"/>',
 };
