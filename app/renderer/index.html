@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fjord</title>
+  <link rel="stylesheet" href="fjord://shared/tokens.css">
+  <link rel="stylesheet" href="fjord://shared/base.css">
+  <link rel="stylesheet" href="ui.css">
+</head>
+<body>
+  <aside id="rail" aria-label="사이드바">
+    <div id="spaces" class="rail-group"></div>
+    <div class="rail-divider"></div>
+    <div id="pins" class="rail-group"></div>
+    <div class="rail-spacer"></div>
+    <div class="rail-divider"></div>
+    <div id="tools" class="rail-group"></div>
+  </aside>
+
+  <section id="top">
+    <div id="tabs">
+      <div id="tabList" role="tablist"></div>
+      <button id="newTab" class="icon-btn" title="새 탭 (Ctrl+T)" aria-label="새 탭"></button>
+    </div>
+    <div id="toolbar">
+      <button id="back" class="icon-btn" title="뒤로 (Alt+←)" aria-label="뒤로"></button>
+      <button id="forward" class="icon-btn" title="앞으로 (Alt+→)" aria-label="앞으로"></button>
+      <button id="reload" class="icon-btn" title="새로고침 (Ctrl+R)" aria-label="새로고침"></button>
+      <form id="addr" autocomplete="off">
+        <input id="addrInput" type="text" spellcheck="false" placeholder="검색어 또는 주소 입력" aria-label="주소">
+      </form>
+    </div>
+  </section>
+
+  <dialog id="dlg">
+    <form id="dlgForm" method="dialog">
+      <h2 id="dlgTitle" class="fj-title-section">워크스페이스</h2>
+      <input id="dlgInput" class="fj-field" maxlength="24" placeholder="이름" required>
+      <p id="dlgMsg" class="fj-caption" role="status"></p>
+      <div class="row">
+        <button type="button" id="dlgCancel" class="fj-btn">취소</button>
+        <button type="submit" class="fj-btn fj-btn--primary">확인</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="ui.js"></script>
+</body>
+</html>

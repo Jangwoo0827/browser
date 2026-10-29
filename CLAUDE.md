@@ -21,6 +21,11 @@
 - 광고 차단은 별도 저장소(`../extension/adblock`)의 복사본이다: `node scripts/sync-adblock.mjs`로 동기화(경로 패치 포함). 수정은 원본 저장소에서.
 - 변경 후 `node scripts/check-extension.mjs`(파일 경로/문법 점검) 실행.
 
+## Electron 앱 (`app/`, 2026-10-29~)
+
+위쪽 탭 UI까지 직접 만들기 위해 Electron 셸을 병행 개발한다(기존 Chromium+확장 버전은 유지). 설계와 제약은 `docs/electron-app.md`. 규칙: UI는 `extensions/fjord/ui` 토큰 사용, 테스트는 `npm run smoke`(숨김 창, 화면에 창을 띄우지 않음), `electron.exe`를 이름으로 종료하지 않음(Claude 데스크톱 앱도 Electron) — 경로가 `app
+ode_modules`인 프로세스만 대상으로.
+
 ## UI 규칙
 
 모든 화면은 `extensions/fjord/ui/tokens.css` 변수(`--fj-*`)와 `base.css` 컴포넌트 클래스만 사용한다(색/간격/반경을 하드코딩하지 않음). 새 컴포넌트는 Figma 파일(`docs/design/README.md`)에 먼저 정의하고 코드와 이름을 맞춘다. 화면 확인은 `node scripts/preview-server.mjs`.
