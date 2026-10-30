@@ -59,6 +59,40 @@
         <button id="pickDir" class="fj-btn">폴더 변경</button></div>
     </section>
 
+    <section class="card" id="clear">
+      <h2 class="fj-title-section">인터넷 사용 기록 삭제 <small class="fj-caption">Ctrl+Shift+Delete</small></h2>
+      <label class="row"><span class="l">기간<small>쿠키·캐시·사이트 데이터는 기간과 상관없이 전체가 지워져요.</small></span>
+        <select id="clearRange" class="fj-field">
+          <option value="hour">지난 1시간</option>
+          <option value="day">지난 24시간</option>
+          <option value="week">지난 7일</option>
+          <option value="month">지난 4주</option>
+          <option value="all" selected>전체</option>
+        </select></label>
+      <div class="checks">
+        <label><input type="checkbox" data-clear="history" checked> 방문 기록</label>
+        <label><input type="checkbox" data-clear="downloads" checked> 다운로드 기록</label>
+        <label><input type="checkbox" data-clear="cookies"> 쿠키 (로그인 풀림)</label>
+        <label><input type="checkbox" data-clear="cache" checked> 캐시된 파일</label>
+        <label><input type="checkbox" data-clear="siteData"> 사이트 데이터 (localStorage 등)</label>
+        <label><input type="checkbox" data-clear="permissions"> 사이트 권한</label>
+      </div>
+      <div class="row"><span id="clearMsg" class="fj-caption"></span><button id="clearGo" class="fj-btn fj-btn--primary">삭제</button></div>
+    </section>
+
+    <section class="card">
+      <h2 class="fj-title-section">쿠키</h2>
+      <input id="cookieFilter" class="fj-field full" placeholder="도메인 검색" spellcheck="false">
+      <div id="cookieList"></div>
+      <p id="cookieEmpty" class="fj-caption" hidden>저장된 쿠키가 없어요.</p>
+    </section>
+
+    <section class="card">
+      <h2 class="fj-title-section">사이트별 확대/축소</h2>
+      <div id="zoomList"></div>
+      <p id="zoomEmpty" class="fj-caption" hidden>기본값(100%)에서 바꾼 사이트가 없어요.</p>
+    </section>
+
     <section class="card">
       <h2 class="fj-title-section">사이트 권한</h2>
       <p class="fj-caption note">사이트가 위치·알림·카메라 같은 권한을 물었을 때 고른 결정이에요. 사이트별로 바꾸거나 지울 수 있어요.</p>
