@@ -113,7 +113,7 @@ function renderTabs() {
       el.onauxclick = (e) => { if (e.button === 1) cmd("closeTab", t.id); };
       el.oncontextmenu = (e) => { e.preventDefault(); cmd("tabMenu", t.id); };
       el.ondragstart = (e) => { dragId = t.id; el.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; };
-      el.ondragend = () => { dragId = null; el.classList.remove("dragging"); document.querySelectorAll(".tab.over").forEach((n) => n.classList.remove("over")); };
+      el.ondragend = (e) => { const id = dragId; if (id) cmd("tabDragEnd", { id, x: e.screenX, y: e.screenY }); dragId = null; el.classList.remove("dragging"); document.querySelectorAll(".tab.over").forEach((n) => n.classList.remove("over")); };
       el.ondragover = (e) => { if (dragId && dragId !== t.id) { e.preventDefault(); el.classList.add("over"); } };
       el.ondragleave = () => el.classList.remove("over");
       el.ondrop = (e) => { e.preventDefault(); if (dragId && dragId !== t.id) cmd("reorder", { id: dragId, beforeId: t.id }); };
@@ -200,6 +200,10 @@ function renderBar() {
 
 function render(s) {
   state = s;
+  document.body.dataset.kind = s.kind || "normal";
+  const badge = $("kindBadge");
+  badge.hidden = !s.kind || s.kind === "normal";
+  badge.textContent = s.kind === "guest" ? "게스트" : "시크릿";
   renderBar();
   $("homeBtn").hidden = !(state.settings && state.settings.showHome);
   renderRail();
@@ -229,6 +233,8 @@ $("addr").onsubmit = (e) => {
   if (text.trim()) cmd("navigate", { id: state.activeTab, input: text });
   input.blur();
 };
+$("menuBtn").innerHTML = icon("menu");
+$("menuBtn").onclick = (e) => { const r = e.currentTarget.getBoundingClientRect(); cmd("mainMenu", { x: r.right - 4, y: r.bottom + 2 }); };
 $("secBtn").onclick = () => cmd("siteInfoShow");
 $("popBtn").onclick = () => cmd("popupsShow");
 $("homeBtn").innerHTML = icon("home");

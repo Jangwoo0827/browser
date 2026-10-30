@@ -42,6 +42,10 @@ body.has-bar { grid-template-rows: 38px 42px 34px 1fr; }
   background: var(--fj-color-bg-rail);
   -webkit-app-region: drag;
 }
+body[data-kind="private"], body[data-kind="guest"] { --fj-color-bg-rail: #e6e0f5; }
+@media (prefers-color-scheme: dark) { body[data-kind="private"], body[data-kind="guest"] { --fj-color-bg-rail: #17112a; } }
+#kindBadge { align-self: center; margin-left: auto; padding: 2px 10px; border-radius: var(--fj-radius-full); background: var(--fj-color-accent-soft); color: var(--fj-color-accent-primary); font: 600 11.5px/18px var(--fj-font); -webkit-app-region: no-drag; }
+#kindBadge[hidden] { display: none; }
 #tabList { display: flex; align-items: flex-end; gap: var(--fj-space-1); min-width: 0; flex: 0 1 auto; max-width: calc(100% - 40px); }
 .tab {
   position: relative; display: flex; align-items: center; gap: var(--fj-space-3);
