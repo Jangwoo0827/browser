@@ -451,6 +451,46 @@ app.whenReady().then(async () => {
       }
     }
 
+    // ---- M2a: per-site zoom, clearing data, cookies ----
+    f.commands.newTab(base + "/page?zoom1");
+    const zTab = await waitFor(() => f.serialize().tabs.find((t) => t.url.endsWith("?zoom1") && t.title === "Needle Page"), 8000);
+    const zhost = new URL(base).host;
+    f.handleShortcut({ type: "keyDown", key: "=", control: true });
+    await sleep(200);
+    check("zoom is stored for the site", Math.abs(f.store.data.zoom[zhost] - 0.5) < 1e-9, f.store.data.zoom);
+    f.commands.navigate({ id: zTab.id, input: base + "/page?zoom2" });
+    await waitFor(() => f.views.get(zTab.id).webContents.getURL().endsWith("?zoom2"), 6000);
+    await sleep(300);
+    check("another page of the site opens at that zoom", Math.abs(f.views.get(zTab.id).webContents.getZoomLevel() - 0.5) < 1e-9 && f.serialize().tabs.find((t) => t.id === zTab.id).zoom === 110, f.serialize().tabs.find((t) => t.id === zTab.id).zoom);
+    check("zoom list for the settings page", f.commands.zoomList().some((r) => r.host === zhost && r.percent === 110));
+    f.commands.zoomRemove(zhost);
+    await sleep(200);
+    check("removing the site zoom resets open pages", f.store.data.zoom[zhost] === undefined && f.views.get(zTab.id).webContents.getZoomLevel() === 0);
+    f.commands.closeTab(zTab.id);
+
+    const sesFj = require("electron").session.fromPartition("persist:fjord");
+    await sesFj.cookies.set({ url: base, name: "m2a", value: "1", expirationDate: Math.floor(Date.now() / 1000) + 3600 });
+    await sesFj.cookies.set({ url: "http://other.test/", name: "o", value: "1", expirationDate: Math.floor(Date.now() / 1000) + 3600 });
+    const doms = await f.commands.cookieList();
+    check("cookie list groups by domain", doms.some((d) => d.domain === "127.0.0.1" && d.count >= 1) && doms.some((d) => d.domain === "other.test"), doms);
+    await f.commands.cookieRemove("other.test");
+    check("removing one site's cookies leaves the others", !(await f.commands.cookieList()).some((d) => d.domain === "other.test") && (await f.commands.cookieList()).some((d) => d.domain === "127.0.0.1"));
+
+    f.store.addHistory("https://old.test/", "old");
+    f.store.data.history.find((e) => e.url === "https://old.test/").at = Date.now() - 3 * 86400e3;
+    f.store.addHistory("https://new.test/", "new");
+    f.commands.permSet({ origin: "http://perm.test", key: "geolocation", value: "allow" });
+    const cleared = await f.commands.clearData({ range: "day", types: ["history", "permissions"] });
+    check("clearing 'last 24h' history keeps older entries", cleared.history && !f.store.data.history.some((e) => e.url === "https://new.test/") && f.store.data.history.some((e) => e.url === "https://old.test/"));
+    check("clearing permissions", cleared.permissions && f.store.listPerms().length === 0);
+    await f.commands.clearData({ range: "all", types: ["history", "cookies", "cache", "siteData", "downloads"] });
+    check("clear all history, cookies, cache and site data", f.store.data.history.length === 0 && (await f.commands.cookieList()).length === 0 && f.downloads.every((d) => d.state === "progressing"));
+    f.handleShortcut({ type: "keyDown", key: "Delete", control: true, shift: true });
+    const clearPage = await waitFor(() => f.serialize().tabs.find((t) => t.url.endsWith("settings.html#clear")));
+    check("Ctrl+Shift+Delete opens the clear-data section", !!clearPage);
+    await waitFor(() => f.serialize().tabs.some((t) => t.url.endsWith("#clear") && t.title === "설정"), 6000);
+    await sleep(500);
+
     // workspace prompt (drawn by the overlay, not a modal dialog hidden behind the page)
     f.commands.promptShow({ mode: "add" });
     await sleep(500);

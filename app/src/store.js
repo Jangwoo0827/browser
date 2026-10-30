@@ -49,6 +49,7 @@ class Store {
       settings: { ...SETTING_DEFAULTS, ...(d.settings || {}) },
       window: d.window && typeof d.window === "object" ? d.window : null,
       permissions: d.permissions && typeof d.permissions === "object" ? d.permissions : {},
+      zoom: d.zoom && typeof d.zoom === "object" ? d.zoom : {},
       running: d.running === true,
     };
   }
@@ -317,9 +318,22 @@ class Store {
     if (e && title) { e.title = title; this.save(); }
   }
 
-  clearHistory() {
-    this.data.history = [];
+  // since: only entries visited at/after this time (ms); 0 = everything
+  clearHistory(since = 0) {
+    this.data.history = since > 0 ? this.data.history.filter((e) => (e.at || 0) < since) : [];
     this.save();
+  }
+
+  // ---- zoom level per site (host[:port]); 0 is the default and is not stored ----
+  setSiteZoom(host, level) {
+    if (!host) return;
+    if (!level) delete this.data.zoom[host];
+    else this.data.zoom[host] = level;
+    this.save();
+  }
+
+  siteZoom(host) {
+    return (host && this.data.zoom[host]) || 0;
   }
 
   // address-bar suggestions: pinned sites and history, best match first

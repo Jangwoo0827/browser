@@ -189,7 +189,7 @@ function ensureView(tab) {
   wc.on("page-favicon-updated", (_e, favicons) => { tab.favicon = favicons[0] || ""; notify(); });
   wc.on("did-start-loading", () => { meta.get(tab.id).loading = true; notify(); });
   wc.on("did-stop-loading", () => { meta.get(tab.id).loading = false; refreshNav(); notify(); });
-  wc.on("did-navigate", (_e, url) => { tab.url = url; const m = meta.get(tab.id); if (m) m.blocked = []; refreshNav(); notify(); });
+  wc.on("did-navigate", (_e, url) => { tab.url = url; const m = meta.get(tab.id); if (m) m.blocked = []; applySiteZoom(wc, tab.id, url); refreshNav(); notify(); });
   wc.on("did-navigate-in-page", (_e, url, isMain) => { if (isMain) { tab.url = url; refreshNav(); notify(); } });
   wc.on("render-process-gone", (_e, details) => {
     const m = meta.get(tab.id);
@@ -562,14 +562,67 @@ function showDownloads() {
   showOverlay("downloads", { x: w - 396, y: topH() + 4, width: 384, height: Math.min(440, h - topH() - 16) }, { downloads });
 }
 
+const siteHost = (url) => {
+  try {
+    const u = new URL(url);
+    return /^https?:$/.test(u.protocol) ? u.host : null;
+  } catch {
+    return null;
+  }
+};
+
 function setZoom(delta) {
   const wc = activeContents();
   if (!wc) return;
   const level = delta === 0 ? 0 : Math.max(-4, Math.min(5, wc.getZoomLevel() + delta));
   wc.setZoomLevel(level);
+  store.setSiteZoom(siteHost(wc.getURL()), level); // remembered for the site, also after a restart
   const m = meta.get(activeTabId());
   if (m) m.zoom = Math.round(Math.pow(1.2, level) * 100);
   notify();
+}
+
+// a page opens at the zoom the user chose for its site
+function applySiteZoom(wc, tabId, url) {
+  const host = siteHost(url);
+  if (!host || wc.isDestroyed()) return;
+  const level = store.siteZoom(host);
+  if (wc.getZoomLevel() !== level) wc.setZoomLevel(level);
+  const m = meta.get(tabId);
+  if (m) m.zoom = Math.round(Math.pow(1.2, level) * 100);
+}
+
+// ---- clearing browsing data ---------------------------------------------------------------------------
+const RANGES = { hour: 3600e3, day: 86400e3, week: 7 * 86400e3, month: 28 * 86400e3 };
+const pses = () => session.fromPartition(PARTITION);
+const stripDot = (d) => String(d || "").replace(/^\./, "");
+
+async function clearData({ range = "all", types = [] }) {
+  const since = RANGES[range] ? Date.now() - RANGES[range] : 0;
+  const done = {};
+  const ses = pses();
+  if (types.includes("history")) { store.clearHistory(since); done.history = true; }
+  if (types.includes("downloads")) {
+    for (let i = downloads.length - 1; i >= 0; i--) if (downloads[i].state !== "progressing" && downloads[i].startedAt >= since) downloads.splice(i, 1);
+    pushDownloads();
+    done.downloads = true;
+  }
+  // Electron cannot clear cookies/cache/site data by time, so these always clear everything
+  if (types.includes("cookies")) { await ses.clearStorageData({ storages: ["cookies"] }); done.cookies = true; }
+  if (types.includes("siteData")) { await ses.clearStorageData({ storages: ["localstorage", "indexdb", "cachestorage", "serviceworkers", "websql", "filesystem"] }); done.siteData = true; }
+  if (types.includes("cache")) { await ses.clearCache(); done.cache = true; }
+  if (types.includes("permissions")) { store.clearPerms(); done.permissions = true; }
+  notify();
+  return done;
+}
+
+async function cookieDomains() {
+  const by = new Map();
+  for (const c of await pses().cookies.get({})) {
+    const d = stripDot(c.domain);
+    by.set(d, (by.get(d) || 0) + 1);
+  }
+  return [...by].map(([domain, count]) => ({ domain, count })).sort((a, b) => b.count - a.count || a.domain.localeCompare(b.domain));
 }
 
 // ---- downloads -------------------------------------------------------------------------------------
@@ -620,6 +673,7 @@ function handleShortcut(input) {
   const go = (d) => { const n = bucket.list.length; if (n) activateTab(bucket.list[(idx + d + n) % n].id); };
 
   if (key === "F11") commands.fullscreenToggle();
+  else if (ctrl && input.shift && !input.alt && key === "Delete") commands.openPage("settings#clear");
   else if (ctrl && !input.shift && !input.alt && key.toLowerCase() === "p") commands.print();
   else if (ctrl && !input.alt && key === ",") commands.openPage("settings");
   else if (input.alt && key === "Home") commands.home();
@@ -846,7 +900,8 @@ const commands = {
   history: () => store.data.history.slice(0, 500),
   historyClear: () => { store.clearHistory(); notify(); },
   openPage: (name) => {
-    const url = `fjord://app/${name}.html`;
+    const [page, hash] = String(name).split("#");
+    const url = `fjord://app/${page}.html${hash ? "#" + hash : ""}`;
     const found = store.tabsOf(store.activeWs).list.find((t) => t.url === url);
     if (found) activateTab(found.id);
     else createTab(store.activeWs, url);
@@ -885,6 +940,22 @@ const commands = {
   dlClear: () => { for (let i = downloads.length - 1; i >= 0; i--) if (downloads[i].state !== "progressing") downloads.splice(i, 1); pushDownloads(); },
   dlList: () => downloads,
   zoomReset: () => setZoom(0),
+  zoomList: () => Object.entries(store.data.zoom).map(([host, level]) => ({ host, percent: Math.round(Math.pow(1.2, level) * 100) })),
+  zoomRemove: (host) => {
+    store.setSiteZoom(host, 0);
+    for (const [id, v] of views) if (!v.webContents.isDestroyed() && siteHost(v.webContents.getURL()) === host) applySiteZoom(v.webContents, id, v.webContents.getURL());
+    notify();
+  },
+  clearData: (opts) => clearData(opts || {}),
+  cookieList: () => cookieDomains(),
+  cookieRemove: async (domain) => {
+    const d = stripDot(domain);
+    for (const c of await pses().cookies.get({})) {
+      const cd = stripDot(c.domain);
+      if (cd === d) await pses().cookies.remove(`${c.secure ? "https" : "http"}://${cd}${c.path}`, c.name);
+    }
+    return {};
+  },
   wsMenu: (id) => {
     const ws = store.workspaces.find((w) => w.id === id);
     if (!ws) return;

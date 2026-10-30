@@ -42,10 +42,50 @@ async function loadPerms() {
   );
 }
 
+function listRow(name, extra, onRemove) {
+  const el = document.createElement("div");
+  el.className = "list-row";
+  el.append(Object.assign(document.createElement("span"), { className: "o", textContent: name, title: name }), Object.assign(document.createElement("span"), { className: "k", textContent: extra }));
+  const x = Object.assign(document.createElement("button"), { className: "x", textContent: "삭제" });
+  x.onclick = onRemove;
+  el.append(x);
+  return el;
+}
+
+let cookies = [];
+function renderCookies() {
+  const q = $("cookieFilter").value.trim().toLowerCase();
+  const shown = cookies.filter((c) => !q || c.domain.includes(q));
+  $("cookieEmpty").hidden = shown.length > 0;
+  $("cookieList").replaceChildren(...shown.map((c) => listRow(c.domain, `쿠키 ${c.count}개`, async () => { await cmd("cookieRemove", c.domain); loadCookies(); })));
+}
+async function loadCookies() { cookies = await cmd("cookieList"); renderCookies(); }
+
+async function loadZoom() {
+  const rows = await cmd("zoomList");
+  $("zoomEmpty").hidden = rows.length > 0;
+  $("zoomList").replaceChildren(...rows.map((r) => listRow(r.host, r.percent + "%", async () => { await cmd("zoomRemove", r.host); loadZoom(); })));
+}
+
+$("cookieFilter").oninput = renderCookies;
+$("clearGo").onclick = async () => {
+  const types = [...document.querySelectorAll("[data-clear]:checked")].map((el) => el.dataset.clear);
+  if (!types.length) { $("clearMsg").textContent = "지울 항목을 고르세요."; return; }
+  $("clearGo").disabled = true;
+  await cmd("clearData", { range: $("clearRange").value, types });
+  $("clearGo").disabled = false;
+  $("clearMsg").textContent = "삭제했어요.";
+  setTimeout(() => ($("clearMsg").textContent = ""), 2500);
+  loadCookies();
+};
+
 async function load() {
   s = await cmd("settingsGet");
   fill();
   loadPerms();
+  loadCookies();
+  loadZoom();
+  if (location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView();
 }
 
 async function save(el) {
