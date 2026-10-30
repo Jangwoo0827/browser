@@ -6,7 +6,7 @@ let kind = null;
 
 function showOnly(k) {
   kind = k;
-  for (const id of ["suggest", "find", "downloads", "prompt", "tabsearch", "bookmark", "permission", "siteinfo", "popups"]) $(id).hidden = id !== k;
+  for (const id of ["suggest", "find", "downloads", "prompt", "tabsearch", "bookmark", "permission", "siteinfo", "popups", "shield"]) $(id).hidden = id !== k;
 }
 
 // ---- suggestions ----
@@ -81,6 +81,30 @@ function renderDownloads(list) {
   );
 }
 $("dlClear").onclick = () => cmd("dlClear");
+
+// ---- ad blocker ----
+const ago = (t) => { if (!t) return "아직 받지 않았어요"; const d = Math.floor((Date.now() - t) / 86400e3); return d < 1 ? "오늘 업데이트" : `${d}일 전 업데이트`; };
+
+function renderShield(p) {
+  $("shIcon").innerHTML = icon("shield");
+  $("shSwitch").setAttribute("aria-checked", String(p.enabled));
+  $("shStatus").textContent = p.enabled ? "켜짐" : "꺼짐";
+  $("shAds").textContent = p.ads;
+  $("shTotal").textContent = p.total.toLocaleString();
+  $("shHost").textContent = p.host || "이 페이지";
+  $("shSite").textContent = p.siteOff ? "이 사이트에서 켜기" : "이 사이트에서 끄기";
+  $("shSite").disabled = !p.host || !p.enabled;
+  $("shList").textContent = `차단 목록 ${p.listCount.toLocaleString()}개 · ${ago(p.updatedAt)}`;
+}
+$("shSwitch").onclick = () => cmd("settingSet", { key: "adblock", value: $("shSwitch").getAttribute("aria-checked") !== "true" });
+$("shSite").onclick = () => cmd("adblockSite");
+$("shUpdate").onclick = async () => {
+  $("shUpdate").disabled = true;
+  $("shMsg").textContent = "받는 중…";
+  const r = await cmd("adblockUpdate");
+  $("shUpdate").disabled = false;
+  if (r && r.error) $("shMsg").textContent = r.error;
+};
 
 // ---- permission request ----
 let permId = null;
@@ -222,7 +246,8 @@ window.fjord.on("show", ({ kind: k, payload }) => {
     permId = payload.id;
     $("permTitle").textContent = `${payload.origin.replace(/^https?:\/\//, "")}에서 ${payload.label} 권한을 요청해요`;
     $("permSub").textContent = "허용하거나 차단한 선택은 기억돼요. 사이트 정보에서 바꿀 수 있어요.";
-  } else if (k === "siteinfo") renderSite(payload);
+  } else if (k === "shield") { $("shMsg").textContent = ""; renderShield(payload); }
+  else if (k === "siteinfo") renderSite(payload);
   else if (k === "popups") renderPopups(payload);
   else if (k === "bookmark") {
     bmCurrent = payload.bookmark;

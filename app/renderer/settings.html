@@ -59,6 +59,15 @@
         <button id="pickDir" class="fj-btn">폴더 변경</button></div>
     </section>
 
+    <section class="card">
+      <h2 class="fj-title-section">광고 및 추적 차단</h2>
+      <label class="row"><span class="l">광고·추적기 차단<small>알려진 광고/추적 도메인으로 가는 요청을 막아요. 레일의 방패 버튼에서도 켜고 끌 수 있어요.</small></span><input type="checkbox" data-key="adblock"></label>
+      <label class="row"><span class="l">차단 목록 자동 업데이트<small>7일마다 HaGeZi Pro 목록(약 4.6MB)을 jsDelivr에서 받아요.</small></span><input type="checkbox" data-key="adblockUpdate"></label>
+      <div class="row"><span class="l">차단 목록<small id="abInfo"></small></span><button id="abUpdate" class="fj-btn">지금 업데이트</button></div>
+      <p class="fj-caption note" id="abAllowTitle">차단을 끈 사이트</p>
+      <div id="abAllow"></div>
+    </section>
+
     <section class="card" id="clear">
       <h2 class="fj-title-section">인터넷 사용 기록 삭제 <small class="fj-caption">Ctrl+Shift+Delete</small></h2>
       <label class="row"><span class="l">기간<small>쿠키·캐시·사이트 데이터는 기간과 상관없이 전체가 지워져요.</small></span>

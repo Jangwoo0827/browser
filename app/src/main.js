@@ -1,7 +1,7 @@
 // Fjord (Electron shell): one frameless window = our own chrome UI (rail, tab strip, toolbar) as the bottom view, and
 // every tab is a WebContentsView stacked on top of it in the content area. Workspaces are lists of tabs: switching
 // swaps which list is shown (no extra windows, no tab groups).
-const { app, BaseWindow, WebContentsView, ipcMain, session, protocol, net, nativeTheme, Menu, shell, clipboard, Notification, dialog, screen } = require("electron");
+const { app, BaseWindow, WebContentsView, ipcMain, session, protocol, net, nativeTheme, Menu, shell, clipboard, Notification, dialog, screen, webContents } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
 const { pathToFileURL } = require("node:url");
@@ -21,6 +21,7 @@ const PARTITION = "persist:fjord";
 const NEWTAB = "fjord://app/newtab.html";
 const { fitBounds } = require("./windowstate");
 const perms = require("./permissions");
+const { Blocker, sameSite } = require("./blocker");
 const ROOT = path.join(__dirname, "..");
 const MOUNTS = { app: path.join(ROOT, "renderer"), shared: path.join(ROOT, "..", "extensions", "fjord", "ui") };
 
@@ -36,6 +37,8 @@ let overlayShown = false;
 let overlayKind = null;
 let findSeq = 0;         // find requests issued / answered (the first request after focus moves is sometimes dropped)
 let findAnswered = 0;
+let blocker = new Blocker();
+const wcTab = new Map(); // webContents id -> tab id (for per-tab blocked counts)
 const pendingPerms = []; // permission requests waiting for an answer: { id, tabId, origin, key, label, callback }
 let shownPermId = null;
 const certAllowed = new Set(); // origins the user chose to open despite a certificate error (this run only)
@@ -91,6 +94,7 @@ function serialize() {
     activeTab: bucket.active,
     tabs: bucket.list.map((t) => ({ ...t, ...(meta.get(t.id) || {}), isNewTab: isNewTab(t.url), shownUrl: errorTarget(t.url) })),
     fullscreen,
+    adblock: { enabled: !!store.data.settings.adblock, total: store.data.adblock.total },
     security: securityOf((bucket.list.find((t) => t.id === bucket.active) || {}).url),
     settings: { showHome: !!store.data.settings.showHome },
     pinned: store.pinned,
@@ -184,7 +188,13 @@ function ensureView(tab) {
     }
     return { action: "deny" };
   });
-  wc.on("did-start-navigation", (_e, _url, inPlace, isMain) => { if (isMain && !inPlace) dropPending(tab.id); });
+  wcTab.set(wc.id, tab.id);
+  wc.on("did-start-navigation", (_e, _url, inPlace, isMain) => {
+    if (!isMain || inPlace) return;
+    dropPending(tab.id);
+    const m = meta.get(tab.id);
+    if (m) m.ads = 0;
+  });
   wc.on("page-title-updated", (_e, title) => { tab.title = title; notify(); });
   wc.on("page-favicon-updated", (_e, favicons) => { tab.favicon = favicons[0] || ""; notify(); });
   wc.on("did-start-loading", () => { meta.get(tab.id).loading = true; notify(); });
@@ -398,7 +408,7 @@ function ensureOverlay() {
     }
     else if (handleShortcut(input)) event.preventDefault();
   });
-  overlay.webContents.on("blur", () => { if (overlayKind === "downloads" || overlayKind === "prompt" || overlayKind === "tabsearch" || overlayKind === "bookmark" || overlayKind === "siteinfo" || overlayKind === "popups") hideOverlay(); });
+  overlay.webContents.on("blur", () => { if (overlayKind === "downloads" || overlayKind === "prompt" || overlayKind === "tabsearch" || overlayKind === "bookmark" || overlayKind === "siteinfo" || overlayKind === "popups" || overlayKind === "shield") hideOverlay(); });
 }
 
 function showOverlay(kind, rect, payload) {
@@ -410,7 +420,7 @@ function showOverlay(kind, rect, payload) {
   overlayKind = kind;
   overlay.setBounds({ x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) });
   overlay.webContents.send("show", { kind, payload });
-  if (kind === "find" || kind === "downloads" || kind === "prompt" || kind === "tabsearch" || kind === "bookmark" || kind === "siteinfo" || kind === "popups") overlay.webContents.focus();
+  if (kind === "find" || kind === "downloads" || kind === "prompt" || kind === "tabsearch" || kind === "bookmark" || kind === "siteinfo" || kind === "popups" || kind === "shield") overlay.webContents.focus();
 }
 
 function hideOverlay() {
@@ -456,6 +466,79 @@ function onPermissionRequest(wc, permission, callback, details) {
   if (!tabId) return callback(false);
   pendingPerms.push({ id: newId(), tabId, origin, key: permission, label: perms.label(permission, details), callback });
   showNextPermission();
+}
+
+// ---- ad & tracker blocking ----------------------------------------------------------------------------
+const BLOCKLIST_URL = "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/pro.txt";
+const blocklistFile = () => path.join(process.env.FJORD_USER_DATA || app.getPath("userData"), "blocklist.txt");
+const hostnameOf = (url) => { try { return new URL(url).hostname.toLowerCase(); } catch { return ""; } };
+
+function adBlocked(details) {
+  if (!store.data.settings.adblock || details.resourceType === "mainFrame") return false;
+  const host = hostnameOf(details.url);
+  if (!host) return false;
+  const wc = details.webContentsId != null ? webContents.fromId(details.webContentsId) : null;
+  const top = hostnameOf((details.frame && details.frame.top && details.frame.top.url) || (wc && wc.getURL()) || "");
+  if (top) {
+    if (store.data.adblock.allow.includes(top) || sameSite(host, top)) return false;
+  }
+  if (!blocker.matches(host)) return false;
+  const tabId = wcTab.get(details.webContentsId);
+  const m = tabId && meta.get(tabId);
+  if (m) m.ads = (m.ads || 0) + 1;
+  store.data.adblock.total++;
+  notify();
+  return true;
+}
+
+function loadBlocklist() {
+  const fresh = new Blocker();
+  fresh.loadRuleFiles(path.join(MOUNTS.shared, "..", "modules", "adblock", "rules"));
+  blocker = fresh; // bundled rules work immediately; the downloaded list joins when it is read
+  const file = blocklistFile();
+  if (!fs.existsSync(file)) return;
+  fs.promises.readFile(file, "utf8").then(async (text) => {
+    const next = new Blocker();
+    next.domains = new Set(fresh.domains);
+    await next.parseListAsync(text);
+    blocker = next;
+    store.data.adblock.listCount = next.size;
+    notify();
+  }).catch(() => {});
+}
+
+async function updateBlocklist() {
+  try {
+    const res = await net.fetch(BLOCKLIST_URL);
+    if (!res.ok) return { error: "목록을 받지 못했어요 (" + res.status + ")" };
+    const text = await res.text();
+    if (text.length < 10000 || !text.includes("||")) return { error: "받은 목록이 올바르지 않아요." };
+    const next = new Blocker();
+    next.loadRuleFiles(path.join(MOUNTS.shared, "..", "modules", "adblock", "rules"));
+    await next.parseListAsync(text);
+    fs.mkdirSync(path.dirname(blocklistFile()), { recursive: true });
+    fs.writeFileSync(blocklistFile(), text);
+    blocker = next;
+    store.data.adblock.listCount = next.size;
+    store.data.adblock.updatedAt = Date.now();
+    notify();
+    return { count: next.size, updatedAt: store.data.adblock.updatedAt };
+  } catch (e) {
+    return { error: "목록을 받지 못했어요: " + e.message };
+  }
+}
+
+function adblockInfo() {
+  return { enabled: !!store.data.settings.adblock, auto: !!store.data.settings.adblockUpdate, listCount: blocker.size, updatedAt: store.data.adblock.updatedAt, total: store.data.adblock.total, allow: store.data.adblock.allow };
+}
+
+function showShield() {
+  const wc = activeContents();
+  const host = wc ? hostnameOf(wc.getURL()) : "";
+  const m = meta.get(activeTabId());
+  const { h } = contentSize();
+  showOverlay("shield", { x: RAIL_W + 8, y: Math.max(topH(), h - 330), width: 340, height: 262 },
+    { ...adblockInfo(), host, siteOff: !!host && store.data.adblock.allow.includes(host), ads: (m && m.ads) || 0 });
 }
 
 function securityOf(url) {
@@ -748,9 +831,36 @@ const commands = {
   },
   dial: () => store.pinned,
   settingsGet: () => ({ ...store.data.settings, downloadDirEffective: downloadDir() }),
+  shieldShow: () => (overlayKind === "shield" ? hideOverlay() : showShield()),
+  adblockInfo: () => adblockInfo(),
+  adblockUpdate: async () => {
+    const r = await updateBlocklist();
+    if (overlayKind === "shield") showShield();
+    return r;
+  },
+  // turn blocking off/on for the current site, then reload it so the change shows
+  adblockSite: () => {
+    const wc = activeContents();
+    const host = wc ? hostnameOf(wc.getURL()) : "";
+    if (!host) return;
+    const list = store.data.adblock.allow;
+    const i = list.indexOf(host);
+    if (i >= 0) list.splice(i, 1);
+    else list.push(host);
+    store.save();
+    wc.reload();
+    if (overlayKind === "shield") showShield();
+    notify();
+  },
+  adblockAllowRemove: (host) => {
+    store.data.adblock.allow = store.data.adblock.allow.filter((h) => h !== host);
+    store.save();
+    notify();
+  },
   settingSet: ({ key, value }) => {
     const r = store.setSetting(key, value);
     if (r.error) return r;
+    if (key === "adblock" && overlayKind === "shield") showShield();
     if (key === "theme") applyTheme();
     if (key === "bookmarkBar") layout();
     notify();
@@ -1085,6 +1195,14 @@ app.whenReady().then(() => {
   ses.setUserAgent(ua);
   ses.on("will-download", onWillDownload);
   ses.setPermissionRequestHandler(onPermissionRequest);
+  loadBlocklist();
+  ses.webRequest.onBeforeRequest({ urls: ["http://*/*", "https://*/*", "ws://*/*", "wss://*/*"] }, (details, callback) => {
+    let block = false;
+    try { block = adBlocked(details); } catch {}
+    callback({ cancel: block });
+  });
+  const stale = Date.now() - store.data.adblock.updatedAt > 7 * 86400e3;
+  if (!TEST && store.data.settings.adblock && store.data.settings.adblockUpdate && stale) setTimeout(() => updateBlocklist(), 5000);
   ses.setPermissionCheckHandler((_wc, permission, requestingOrigin) => {
     const origin = perms.originOf(requestingOrigin);
     return !!origin && perms.policy(permission, store.getPerm(origin, permission)) === "allow";
@@ -1094,7 +1212,7 @@ app.whenReady().then(() => {
   createWindow();
   applyTheme();
   nativeTheme.on("updated", applyTheme);
-  if (TEST) global.__fjord = { commands, serialize, store, ui: () => ui, win: () => win, views, attached: () => attached, overlay: () => overlay, overlayKind: () => overlayKind, downloads, topH, RAIL_W, handleShortcut, createTab, isFullscreen: () => fullscreen, pendingPerms, certAllowed, securityOf };
+  if (TEST) global.__fjord = { commands, serialize, store, ui: () => ui, win: () => win, views, attached: () => attached, overlay: () => overlay, overlayKind: () => overlayKind, downloads, topH, RAIL_W, handleShortcut, createTab, isFullscreen: () => fullscreen, pendingPerms, certAllowed, securityOf, getBlocker: () => blocker };
   app.on("activate", () => { if (!win) createWindow(); });
 });
 

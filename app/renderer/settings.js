@@ -67,6 +67,22 @@ async function loadZoom() {
   $("zoomList").replaceChildren(...rows.map((r) => listRow(r.host, r.percent + "%", async () => { await cmd("zoomRemove", r.host); loadZoom(); })));
 }
 
+async function loadAdblock() {
+  const a = await cmd("adblockInfo");
+  const age = a.updatedAt ? `${Math.floor((Date.now() - a.updatedAt) / 86400e3)}일 전 업데이트` : "기본 목록만 사용 중";
+  $("abInfo").textContent = `${a.listCount.toLocaleString()}개 도메인 · ${age} · 지금까지 ${a.total.toLocaleString()}개 차단`;
+  $("abAllowTitle").hidden = a.allow.length === 0;
+  $("abAllow").replaceChildren(...a.allow.map((h) => listRow(h, "", async () => { await cmd("adblockAllowRemove", h); loadAdblock(); })));
+}
+$("abUpdate").onclick = async () => {
+  $("abUpdate").disabled = true;
+  say("받는 중…");
+  const r = await cmd("adblockUpdate");
+  $("abUpdate").disabled = false;
+  if (r && r.error) say(r.error, true); else say("업데이트했어요");
+  loadAdblock();
+};
+
 $("cookieFilter").oninput = renderCookies;
 $("clearGo").onclick = async () => {
   const types = [...document.querySelectorAll("[data-clear]:checked")].map((el) => el.dataset.clear);
@@ -85,6 +101,7 @@ async function load() {
   loadPerms();
   loadCookies();
   loadZoom();
+  loadAdblock();
   if (location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView();
 }
 
