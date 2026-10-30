@@ -54,6 +54,9 @@ const server = http.createServer((req, res) => {
     adHits++;
     res.writeHead(200, { "content-type": "image/png" });
     res.end(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64"));
+  } else if (req.url === "/cookie") {
+    res.writeHead(200, { "content-type": "text/html; charset=utf-8", "set-cookie": "wintest=1; Max-Age=3600; Path=/" });
+    res.end("<title>Cookie Page</title><p>cookie</p>");
   } else if (req.url === "/file.bin") {
     res.writeHead(200, { "content-type": "application/octet-stream", "content-disposition": 'attachment; filename="sample.bin"', "content-length": FILE.length });
     res.end(FILE);
@@ -559,6 +562,65 @@ app.whenReady().then(async () => {
     check("global switch off lets everything through", adHits > hitsBefore, adHits);
     f.commands.settingSet({ key: "adblock", value: true });
     f.commands.closeTab(adTab.id);
+
+    // ---- M2c: several windows, private and guest windows, moving tabs between windows ----
+    const winCount = () => f.windows().length;
+    const first = f.windows().length;
+    f.commands.newWindow();
+    check("new window opens with its own tab list", winCount() === first + 1 && f.windows()[first].ts !== f.store && f.windows()[first].ts.tabsOf(f.windows()[first].ts.activeWs).list.length === 1);
+    const w2 = f.windows()[first];
+    const w2state = f.inCtx(w2, () => f.serialize());
+    check("each window serializes its own tabs", w2state.kind === "normal" && w2state.tabs.length === 1 && w2state.tabs[0].isNewTab);
+    f.inCtx(w2, () => f.commands.newTab(base + "/page?w2"));
+    const w2tab = await waitFor(() => f.inCtx(w2, () => f.serialize().tabs.find((t) => t.url.endsWith("?w2") && t.title === "Needle Page")), 8000);
+    check("a page loads in the second window and does not appear in the first", !!w2tab && !f.serialize().tabs.some((t) => t.url.endsWith("?w2")));
+    check("the second window shares the profile (history is recorded)", f.store.data.history.some((e) => e.url.endsWith("?w2")));
+
+    // moving a tab: first window -> second window (same session), the page keeps running
+    f.commands.newTab(base + "/page?mover");
+    const mover = await waitFor(() => f.serialize().tabs.find((t) => t.url.endsWith("?mover") && t.title === "Needle Page"), 8000);
+    const moverWc = f.views.get(mover.id).webContents;
+    f.moveTabToWindow(mover.id, w2);
+    await sleep(300);
+    check("tab moves to another window with its page", !f.serialize().tabs.some((t) => t.id === mover.id) && f.inCtx(w2, () => f.serialize().activeTab === mover.id) && !moverWc.isDestroyed() && moverWc.getURL().endsWith("?mover"));
+    // ... and out to a new window of its own
+    const wBefore = winCount();
+    const out = f.inCtx(w2, () => f.moveTabToWindow(mover.id, null));
+    await sleep(300);
+    check("tab moves out into a new window", winCount() === wBefore + 1 && out && f.inCtx(out, () => f.serialize().activeTab === mover.id) && !moverWc.isDestroyed());
+    check("a window will not give away its only tab", f.inCtx(out, () => f.moveTabToWindow(mover.id, null)) === null);
+
+    // private window: separate session, nothing recorded
+    const histBefore = f.store.data.history.length;
+    f.commands.newPrivateWindow();
+    const wp = f.windows()[f.windows().length - 1];
+    check("private window uses an in-memory session and says so", wp.kind === "private" && wp.partition === "fjord-private" && f.inCtx(wp, () => f.serialize().kind) === "private");
+    f.inCtx(wp, () => f.commands.newTab(base + "/cookie"));
+    await waitFor(() => f.inCtx(wp, () => f.serialize().tabs.find((t) => t.url.endsWith("/cookie") && t.title === "Cookie Page")), 8000);
+    await sleep(400);
+    await shot(f.inCtx(wp, () => f.ui().webContents), "app-private.png");
+    const sesPriv = require("electron").session.fromPartition("fjord-private");
+    const sesMain = require("electron").session.fromPartition("persist:fjord");
+    const privCookies = await sesPriv.cookies.get({ name: "wintest" });
+    const mainCookies = await sesMain.cookies.get({ name: "wintest" });
+    check("private cookies stay in the private session", privCookies.length === 1 && mainCookies.length === 0, { privCookies: privCookies.length, mainCookies: mainCookies.length });
+    check("private browsing leaves no history", f.store.data.history.length === histBefore && !f.store.data.history.some((e) => e.url.endsWith("/cookie")));
+    const mv = f.inCtx(wp, () => { const t = f.serialize().tabs.find((x) => x.url.endsWith("/cookie")); return f.moveTabToWindow(t.id, f.main()); });
+    check("a private tab cannot move into a normal window", mv === null);
+    f.inCtx(wp, () => f.commands.newGuestWindow());
+    const wg = f.windows()[f.windows().length - 1];
+    const gstate = f.inCtx(wg, () => ({ s: f.serialize(), dial: f.commands.dial(), sug: f.commands.suggest("example"), hist: f.commands.history() }));
+    check("guest window hides the profile (no pinned sites, bookmarks, history)", gstate.s.kind === "guest" && gstate.s.pinned.length === 0 && gstate.s.bookmarkBar.visible === false && gstate.dial.length === 0 && gstate.sug.length === 0 && gstate.hist.length === 0);
+    f.inCtx(wp, () => f.handleShortcut({ type: "keyDown", key: "n", control: true }));
+    check("Ctrl+N opens another window from inside any window", winCount() >= wBefore + 4);
+
+    // closing the last private window wipes its data
+    for (const w of f.windows().filter((x) => x.kind === "private")) w.win.close();
+    await sleep(800);
+    check("closing the private window clears its cookies", (await sesPriv.cookies.get({ name: "wintest" })).length === 0 && !f.windows().some((x) => x.kind === "private"));
+    for (const w of f.windows().filter((x) => !x.main)) w.win.close();
+    await sleep(500);
+    check("closing windows leaves the main one intact", f.windows().length === 1 && f.windows()[0] === f.main() && f.serialize().tabs.length > 0);
 
     // workspace prompt (drawn by the overlay, not a modal dialog hidden behind the page)
     f.commands.promptShow({ mode: "add" });

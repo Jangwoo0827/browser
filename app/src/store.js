@@ -34,7 +34,7 @@ class Store {
   _load() {
     let d = {};
     try {
-      d = JSON.parse(fs.readFileSync(this.file, "utf8"));
+      if (this.file) d = JSON.parse(fs.readFileSync(this.file, "utf8"));
     } catch {}
     const workspaces = Array.isArray(d.workspaces) && d.workspaces.length ? d.workspaces : DEFAULT_WORKSPACES.map((w) => ({ ...w }));
     return {
@@ -56,6 +56,7 @@ class Store {
   }
 
   save(now = false) {
+    if (!this.file) return; // in-memory store (windows other than the main one)
     clearTimeout(this._timer);
     const write = () => {
       try {
