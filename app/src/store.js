@@ -19,7 +19,7 @@ const ENGINES = {
   duckduckgo: { name: "DuckDuckGo", url: "https://duckduckgo.com/?q=%s" },
   bing: { name: "Bing", url: "https://www.bing.com/search?q=%s" },
 };
-const SETTING_DEFAULTS = { bookmarkBar: true, searchEngine: "google", customSearch: "", startup: "restore", homeUrl: "", showHome: false, theme: "system", downloadDir: "" };
+const SETTING_DEFAULTS = { adblock: true, adblockUpdate: true, bookmarkBar: true, searchEngine: "google", customSearch: "", startup: "restore", homeUrl: "", showHome: false, theme: "system", downloadDir: "" };
 const ENUMS = { searchEngine: [...Object.keys(ENGINES), "custom"], startup: ["restore", "newtab", "home"], theme: ["system", "light", "dark"] };
 
 class Store {
@@ -50,6 +50,7 @@ class Store {
       window: d.window && typeof d.window === "object" ? d.window : null,
       permissions: d.permissions && typeof d.permissions === "object" ? d.permissions : {},
       zoom: d.zoom && typeof d.zoom === "object" ? d.zoom : {},
+      adblock: { allow: [], total: 0, updatedAt: 0, listCount: 0, ...(d.adblock || {}) },
       running: d.running === true,
     };
   }

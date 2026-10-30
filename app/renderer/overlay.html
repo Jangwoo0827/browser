@@ -20,6 +20,15 @@
     <button id="findClose" class="mini" title="닫기 (Esc)" aria-label="닫기"></button>
   </div>
 
+  <!-- ad blocker -->
+  <div id="shield" class="card shield" hidden>
+    <div class="sh-head"><span id="shIcon"></span><div><div class="sh-title">광고·추적 차단</div><div id="shStatus" class="fj-caption"></div></div><button id="shSwitch" class="switch" role="switch" aria-label="광고·추적 차단"></button></div>
+    <div class="sh-count"><b id="shAds">0</b><span class="fj-caption">이 페이지에서 차단함 · 총 <span id="shTotal">0</span>개</span></div>
+    <div class="sh-row"><span id="shHost" class="n"></span><button id="shSite" class="fj-btn">이 사이트에서 끄기</button></div>
+    <div class="sh-row"><span class="fj-caption" id="shList"></span><button id="shUpdate" class="fj-btn">업데이트</button></div>
+    <p id="shMsg" class="fj-caption"></p>
+  </div>
+
   <!-- permission request -->
   <div id="permission" class="card perm" hidden>
     <p id="permTitle" class="perm-title"></p>

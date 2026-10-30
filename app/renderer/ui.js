@@ -6,7 +6,7 @@ const cmd = (name, arg) => window.fjord.cmd(name, arg);
 let state = null;
 let dragId = null;
 
-function railButton(title, content, onClick, { active = false, disabled = false, onContext } = {}) {
+function railButton(title, content, onClick, { active = false, disabled = false, onContext, badge = 0 } = {}) {
   const b = document.createElement("button");
   b.className = "rail-btn" + (active ? " active" : "");
   b.title = title;
@@ -17,6 +17,7 @@ function railButton(title, content, onClick, { active = false, disabled = false,
   if (typeof content === "string") g.innerHTML = content;
   else g.append(content);
   b.append(g);
+  if (badge) b.append(Object.assign(document.createElement("span"), { className: "rail-badge", textContent: badge > 99 ? "99+" : String(badge) }));
   b.onclick = onClick;
   if (onContext) b.oncontextmenu = (e) => { e.preventDefault(); onContext(); };
   return b;
@@ -47,7 +48,10 @@ function renderRail() {
   );
   $("pins").replaceChildren(...state.pinned.map((p) => railButton(`${p.name}\n${p.url}`, siteGlyph(p), () => cmd("openPinned", p.id))));
   $("tools").replaceChildren(
-    railButton("광고 차단 (준비 중)", icon("shield"), () => {}, { disabled: true }),
+    railButton(state.adblock && state.adblock.enabled ? "광고·추적 차단" : "광고·추적 차단 (꺼짐)", icon("shield"), () => cmd("shieldShow"), {
+      active: !!(state.adblock && state.adblock.enabled),
+      badge: (state.tabs.find((t) => t.id === state.activeTab) || {}).ads || 0,
+    }),
     railButton("설정 (Ctrl+,)", icon("sliders"), () => cmd("openPage", "settings"))
   );
 }

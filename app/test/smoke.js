@@ -36,6 +36,7 @@ async function shot(webContents, file) {
 
 // local server: a page with a known word count and a downloadable file
 const FILE = Buffer.alloc(4096, 7);
+let adHits = 0;
 const server = http.createServer((req, res) => {
   if (req.url === "/slow") { // 90 KB in 30 chunks, 100 ms apart: long enough to pause and resume
     res.writeHead(200, { "content-type": "application/octet-stream", "content-disposition": 'attachment; filename="slow.bin"', "content-length": 90000 });
@@ -46,6 +47,13 @@ const server = http.createServer((req, res) => {
       sent += 3000;
       if (sent >= 90000) { clearInterval(tick); res.end(); }
     }, 100);
+  } else if (req.url === "/adpage") { // a page that loads an image from "localhost" (listed as a tracker in the test) while it lives on 127.0.0.1
+    res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    res.end(`<title>Ad Page</title><p>hello</p><img src="http://localhost:${req.socket.localPort}/ad.png">`);
+  } else if (req.url === "/ad.png") {
+    adHits++;
+    res.writeHead(200, { "content-type": "image/png" });
+    res.end(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64"));
   } else if (req.url === "/file.bin") {
     res.writeHead(200, { "content-type": "application/octet-stream", "content-disposition": 'attachment; filename="sample.bin"', "content-length": FILE.length });
     res.end(FILE);
@@ -520,6 +528,37 @@ app.whenReady().then(async () => {
     f.commands.dlRetry(doomed.id);
     const retried = await waitFor(() => f.downloads.find((d) => d.id !== doomed.id && d.id !== slow.id && d.state === "completed"), 10000);
     check("retrying a cancelled download replaces it with a fresh complete one", doomed.state === "cancelled" && !!retried && !f.downloads.some((d) => d.id === doomed.id) && fs.statSync(retried.path).size === 90000);
+
+    // ---- M2b: ad & tracker blocking ----
+    const { Blocker, sameSite } = require("../src/blocker");
+    const tb = new Blocker();
+    const added = tb.parseList("[Adblock Plus]\n! comment\n||ads.example.com^\n||tracker.net^\n||tracker.net^$third-party\n@@||ok.tracker.net^\n##.banner\n/ads/*\n");
+    check("filter list parser keeps plain host rules and exceptions only", added === 2 && tb.matches("ads.example.com") && tb.matches("a.b.tracker.net") && !tb.matches("ok.tracker.net") && !tb.matches("example.com") && !tb.matches("nottracker.net"), added);
+    check("bundled rule files load (doubleclick is listed)", (() => { const b = new Blocker(); return b.loadRuleFiles(path.join(__dirname, "..", "..", "extensions", "fjord", "modules", "adblock", "rules")) > 50 && b.matches("stats.g.doubleclick.net"); })());
+    check("same-site check", sameSite("www.a.com", "a.com") && sameSite("a.com", "x.a.com") && !sameSite("a.com", "b.com"));
+    f.getBlocker().addDomains(["localhost"]);
+    adHits = 0;
+    f.commands.newTab(base + "/adpage");
+    const adTab = await waitFor(() => f.serialize().tabs.find((t) => t.url.endsWith("/adpage") && t.title === "Ad Page"), 8000);
+    await sleep(800);
+    const adsNow = f.serialize().tabs.find((t) => t.id === adTab.id).ads;
+    check("third-party tracker request is blocked and counted", adHits === 0 && adsNow >= 1 && f.store.data.adblock.total >= 1, { adHits, adsNow });
+    f.commands.shieldShow();
+    await sleep(500);
+    check("shield panel opens", f.overlayKind() === "shield");
+    await shot(f.overlay().webContents, "app-shield.png");
+    f.commands.overlayHide();
+    f.commands.adblockSite(); // off for 127.0.0.1, reloads the page
+    await sleep(1200);
+    check("blocking can be turned off for one site", f.store.data.adblock.allow.includes("127.0.0.1") && adHits >= 1, adHits);
+    f.commands.adblockSite();
+    f.commands.settingSet({ key: "adblock", value: false });
+    const hitsBefore = adHits;
+    f.views.get(adTab.id).webContents.reload();
+    await sleep(1200);
+    check("global switch off lets everything through", adHits > hitsBefore, adHits);
+    f.commands.settingSet({ key: "adblock", value: true });
+    f.commands.closeTab(adTab.id);
 
     // workspace prompt (drawn by the overlay, not a modal dialog hidden behind the page)
     f.commands.promptShow({ mode: "add" });
