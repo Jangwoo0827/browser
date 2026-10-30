@@ -64,7 +64,7 @@ function renderDownloads(list) {
       const li = document.createElement("li");
       li.className = "dl";
       const pct = d.total > 0 ? Math.min(100, Math.round((d.received / d.total) * 100)) : 0;
-      const info = d.state === "progressing" ? `${fmt(d.received)}${d.total ? " / " + fmt(d.total) : ""}` : `${STATE[d.state] || d.state} · ${fmt(d.received)}`;
+      const info = d.state === "progressing" ? `${d.paused ? "일시정지됨 · " : ""}${fmt(d.received)}${d.total ? " / " + fmt(d.total) : ""}` : `${STATE[d.state] || d.state} · ${fmt(d.received)}`;
       li.innerHTML = `<div class="name"></div><div class="info"></div>`;
       li.querySelector(".name").textContent = d.name;
       li.querySelector(".info").textContent = info;
@@ -72,7 +72,8 @@ function renderDownloads(list) {
       const actions = document.createElement("div");
       actions.className = "actions";
       const add = (label, name) => { const b = document.createElement("button"); b.textContent = label; b.onclick = () => cmd(name, d.id); actions.append(b); };
-      if (d.state === "progressing") add("취소", "dlCancel");
+      if (d.state === "progressing") { add(d.paused ? "이어받기" : "일시정지", d.paused ? "dlResume" : "dlPause"); add("취소", "dlCancel"); }
+      if (d.state === "interrupted" || d.state === "cancelled") add("다시 시도", "dlRetry");
       if (d.state === "completed") { add("열기", "dlOpen"); add("폴더에서 보기", "dlShow"); }
       li.append(actions);
       return li;

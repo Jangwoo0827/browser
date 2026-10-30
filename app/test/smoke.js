@@ -37,7 +37,16 @@ async function shot(webContents, file) {
 // local server: a page with a known word count and a downloadable file
 const FILE = Buffer.alloc(4096, 7);
 const server = http.createServer((req, res) => {
-  if (req.url === "/file.bin") {
+  if (req.url === "/slow") { // 90 KB in 30 chunks, 100 ms apart: long enough to pause and resume
+    res.writeHead(200, { "content-type": "application/octet-stream", "content-disposition": 'attachment; filename="slow.bin"', "content-length": 90000 });
+    let sent = 0;
+    const tick = setInterval(() => {
+      if (res.destroyed) return clearInterval(tick);
+      res.write(Buffer.alloc(3000, 9));
+      sent += 3000;
+      if (sent >= 90000) { clearInterval(tick); res.end(); }
+    }, 100);
+  } else if (req.url === "/file.bin") {
     res.writeHead(200, { "content-type": "application/octet-stream", "content-disposition": 'attachment; filename="sample.bin"', "content-length": FILE.length });
     res.end(FILE);
   } else {
@@ -490,6 +499,27 @@ app.whenReady().then(async () => {
     check("Ctrl+Shift+Delete opens the clear-data section", !!clearPage);
     await waitFor(() => f.serialize().tabs.some((t) => t.url.endsWith("#clear") && t.title === "설정"), 6000);
     await sleep(500);
+
+    // ---- M2a: pause / resume / retry downloads ----
+    f.downloads.length = 0;
+    const dwc = f.views.get(f.attached()).webContents;
+    dwc.downloadURL(base + "/slow");
+    const slow = await waitFor(() => f.downloads[0] && f.downloads[0].received > 0 && f.downloads[0], 6000);
+    f.commands.dlPause(slow.id);
+    await sleep(350);
+    const r1 = slow.received;
+    await sleep(500);
+    check("pausing stops the download", slow.paused === true && slow.state === "progressing" && slow.received === r1 && r1 < 90000, { paused: slow.paused, r1, r2: slow.received });
+    f.commands.dlResume(slow.id);
+    const slowDone = await waitFor(() => slow.state === "completed" && slow, 10000);
+    check("resuming finishes the file", !!slowDone && fs.statSync(slow.path).size === 90000 && slow.paused === false, slow.received);
+    dwc.downloadURL(base + "/slow");
+    const doomed = await waitFor(() => f.downloads[0] && f.downloads[0].id !== slow.id && f.downloads[0].received > 0 && f.downloads[0], 6000);
+    f.commands.dlCancel(doomed.id);
+    await waitFor(() => doomed.state === "cancelled", 4000);
+    f.commands.dlRetry(doomed.id);
+    const retried = await waitFor(() => f.downloads.find((d) => d.id !== doomed.id && d.id !== slow.id && d.state === "completed"), 10000);
+    check("retrying a cancelled download replaces it with a fresh complete one", doomed.state === "cancelled" && !!retried && !f.downloads.some((d) => d.id === doomed.id) && fs.statSync(retried.path).size === 90000);
 
     // workspace prompt (drawn by the overlay, not a modal dialog hidden behind the page)
     f.commands.promptShow({ mode: "add" });

@@ -644,18 +644,22 @@ function onWillDownload(_event, item) {
   fs.mkdirSync(dir, { recursive: true });
   const file = uniquePath(dir, item.getFilename() || "download");
   item.setSavePath(file);
-  const d = { id: newId(), name: path.basename(file), path: file, received: 0, total: item.getTotalBytes(), state: "progressing", startedAt: Date.now() };
+  const d = { id: newId(), name: path.basename(file), path: file, url: item.getURL(), received: 0, total: item.getTotalBytes(), state: "progressing", paused: false, canResume: false, startedAt: Date.now() };
   downloads.unshift(d);
   downloadItems.set(d.id, item);
   item.on("updated", (_e, state) => {
     d.received = item.getReceivedBytes();
     d.total = item.getTotalBytes();
     d.state = state === "interrupted" ? "interrupted" : "progressing";
+    d.paused = item.isPaused();
+    d.canResume = item.canResume();
     pushDownloads();
   });
   item.once("done", (_e, state) => {
     d.state = state; // completed | cancelled | interrupted
     d.received = item.getReceivedBytes();
+    d.paused = false;
+    d.canResume = false;
     downloadItems.delete(d.id);
     pushDownloads();
     if (state === "completed" && !TEST) new Notification({ title: "다운로드 완료", body: d.name }).show();
@@ -937,6 +941,32 @@ const commands = {
   dlOpen: (id) => { const d = downloads.find((x) => x.id === id); if (d) shell.openPath(d.path); },
   dlShow: (id) => { const d = downloads.find((x) => x.id === id); if (d) shell.showItemInFolder(d.path); },
   dlCancel: (id) => downloadItems.get(id)?.cancel(),
+  dlPause: (id) => {
+    const item = downloadItems.get(id);
+    const d = downloads.find((x) => x.id === id);
+    if (!item || !d || item.isPaused()) return;
+    item.pause();
+    d.paused = true;
+    pushDownloads();
+  },
+  dlResume: (id) => {
+    const item = downloadItems.get(id);
+    const d = downloads.find((x) => x.id === id);
+    if (!item || !d || !item.canResume()) return;
+    item.resume();
+    d.paused = false;
+    pushDownloads();
+  },
+  // a finished-with-error or cancelled download starts over from its address (the old entry is replaced)
+  dlRetry: (id) => {
+    const i = downloads.findIndex((x) => x.id === id);
+    const d = downloads[i];
+    const wc = activeContents();
+    if (!d || !wc || d.state === "progressing" || !/^https?:\/\//i.test(d.url || "")) return;
+    downloads.splice(i, 1);
+    wc.downloadURL(d.url);
+    pushDownloads();
+  },
   dlClear: () => { for (let i = downloads.length - 1; i >= 0; i--) if (downloads[i].state !== "progressing") downloads.splice(i, 1); pushDownloads(); },
   dlList: () => downloads,
   zoomReset: () => setZoom(0),
