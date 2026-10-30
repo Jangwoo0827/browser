@@ -43,3 +43,9 @@ the extension build (`extensions/fjord`, `scripts/launch.ps1`), which keeps work
 2. Done: downloads, find, zoom, context menu, history, address suggestions. Since then: tab features, bookmarks, settings page, print/fullscreen/window state, error pages, permission prompts, site info, popup blocking, certificate errors (M1 done). Still open: see `docs/feature-checklist.md` (M2+).
 3. Built-ins: ad blocking (lists + `webRequest`), Claude side panel (claude.ai in a right-hand view), pinned-site panel.
 4. Packaging: electron-builder installer, branded exe icon, GitHub Releases + auto-update.
+
+## 여러 창 구조 (M2c)
+- 창마다 `ctx` 객체(`createWindow`)가 있고, `main.js`의 모듈 변수(`win, ui, overlay, attached, views, meta, ts ...`)는 **현재 창**의 값이다. `inCtx(ctx, fn)`이 값을 바꿔 끼운다.
+- 나중에 실행되는 코드(이벤트 핸들러, 타이머, 메뉴 클릭, `await` 이후)는 반드시 `inCtx` / `later()` / `popupMenu()`를 거쳐야 올바른 창에서 돈다. 웹 컨텐츠 이벤트는 `ensureView` 안의 `on()` 헬퍼가 처리.
+- 탭/워크스페이스 데이터는 `ts`(프로필 저장소 또는 메모리 전용 저장소), 프로필 공통 데이터(설정/북마크/기록/권한/줌)는 `store`, 시크릿/게스트 창의 권한·줌은 `ps()`로 창 쪽 저장소를 쓴다.
+- 파티션: 일반 `persist:fjord`, 시크릿 `fjord-private`, 게스트 `fjord-guest`(메모리 전용). 세션 훅은 `ensureSession(partition)`이 한 번씩 설치.
