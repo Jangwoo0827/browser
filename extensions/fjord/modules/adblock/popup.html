@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>Ad Skipper</title>
+  <title>광고 차단</title>
   <style>
     :root {
       --bg: #ffffff; --fg: #0f172a; --muted: #64748b; --card: #f1f5f9; --line: #e2e8f0;
@@ -97,10 +97,10 @@
   <header>
     <img src="../../icons/icon48.png" alt="">
     <div class="title">
-      <h1>Ad Skipper &amp; Blocker</h1>
-      <div class="sub" id="status">Protection is on</div>
+      <h1>광고 · 추적 차단</h1>
+      <div class="sub" id="status">보호 중</div>
     </div>
-    <label class="switch" title="Turn blocking on/off">
+    <label class="switch" title="차단 켜기/끄기">
       <input type="checkbox" id="toggle" checked>
       <span class="slider"></span>
     </label>
@@ -110,9 +110,9 @@
     <section class="card option site" id="siteCard" hidden>
       <div>
         <b id="siteName">—</b>
-        <span id="siteStatus">Blocking on this site</span>
+        <span id="siteStatus">이 사이트에서 차단 중</span>
       </div>
-      <label class="switch small" title="Turn blocking on/off for this site">
+      <label class="switch small" title="이 사이트에서 차단 켜기/끄기">
         <input type="checkbox" id="siteToggle" checked>
         <span class="slider"></span>
       </label>
@@ -120,25 +120,25 @@
 
     <section class="hero">
       <div class="count" id="total">0</div>
-      <div class="label">ads &amp; trackers stopped</div>
+      <div class="label">차단한 광고·추적기</div>
     </section>
 
     <section class="tiles">
-      <div class="tile"><b id="network">0</b><span>Requests</span></div>
-      <div class="tile"><b id="cosmetic">0</b><span>Elements</span></div>
+      <div class="tile"><b id="network">0</b><span>요청</span></div>
+      <div class="tile"><b id="cosmetic">0</b><span>요소</span></div>
       <div class="tile"><b id="youtube">0</b><span>YouTube</span></div>
     </section>
 
     <section class="card">
-      <h2>Filter lists</h2>
+      <h2>필터 목록</h2>
       <div id="lists"></div>
-      <div class="meta" id="meta">Not downloaded yet</div>
+      <div class="meta" id="meta">아직 받지 않았어요</div>
     </section>
 
     <section class="card option">
       <div>
-        <b>Block cookie banners &amp; A/B tests</b>
-        <span>Consent popups, Optimizely, LaunchDarkly… may break a few sites</span>
+        <b>쿠키 배너·A/B 테스트 차단</b>
+        <span>동의 팝업, Optimizely, LaunchDarkly 등 — 일부 사이트가 깨질 수 있어요</span>
       </div>
       <label class="switch small">
         <input type="checkbox" id="consent" checked>
@@ -148,8 +148,8 @@
 
     <section class="card option">
       <div>
-        <b>Strict mode</b>
-        <span>Blocks YouTube/Facebook/Instagram APIs &amp; JW Player off their own sites — embeds and "Log in with Facebook" may break</span>
+        <b>엄격 모드</b>
+        <span>YouTube/Facebook/Instagram API와 JW Player를 해당 사이트 밖에서 차단해요 — 임베드와 "Facebook으로 로그인"이 깨질 수 있어요</span>
       </div>
       <label class="switch small">
         <input type="checkbox" id="strict" checked>
@@ -158,8 +158,8 @@
     </section>
 
     <section class="actions">
-      <button class="primary" id="update">Update lists</button>
-      <button id="reset">Reset stats</button>
+      <button class="primary" id="update">목록 업데이트</button>
+      <button id="reset">통계 초기화</button>
     </section>
   </main>
 

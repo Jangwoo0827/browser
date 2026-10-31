@@ -5,7 +5,7 @@ const fmt = n => (n || 0).toLocaleString();
 function renderEnabled(enabled) {
   $('toggle').checked = enabled;
   document.body.classList.toggle('off', !enabled);
-  $('status').textContent = enabled ? 'Protection is on' : 'Paused on all sites';
+  $('status').textContent = enabled ? '보호 중' : '모든 사이트에서 일시중지';
 }
 
 function renderStats(stats) {
@@ -18,10 +18,10 @@ function renderStats(stats) {
 
 function timeAgo(ts) {
   const m = Math.round((Date.now() - ts) / 60000);
-  if (m < 1) return 'just now';
-  if (m < 60) return `${m} min ago`;
+  if (m < 1) return '방금';
+  if (m < 60) return `${m}분 전`;
   const h = Math.round(m / 60);
-  return h < 48 ? `${h} h ago` : `${Math.round(h / 24)} days ago`;
+  return h < 48 ? `${h}시간 전` : `${Math.round(h / 24)}일 전`;
 }
 
 function renderMeta(meta) {
@@ -38,20 +38,20 @@ function renderMeta(meta) {
     const right = document.createElement('span');
     right.className = 'n';
     right.textContent = !info ? '—' : info.ok
-      ? `${fmt(info.network)} net · ${fmt(info.cosmetic)} css`
-      : 'failed';
+      ? `요청 ${fmt(info.network)} · 요소 ${fmt(info.cosmetic)}`
+      : '실패';
     if (info && !info.ok) right.title = info.error;
     row.append(left, right);
     lists.append(row);
   }
   $('meta').textContent = meta
-    ? `${fmt(meta.networkRules)} rules + ${fmt(meta.blockedDomains)} domains · updated ${timeAgo(meta.updatedAt)}`
-    : 'Not downloaded yet — lists fetch automatically after install.';
+    ? `규칙 ${fmt(meta.networkRules)} + 도메인 ${fmt(meta.blockedDomains)} · ${timeAgo(meta.updatedAt)} 업데이트`
+    : '아직 받지 않았어요 — 설치 후 자동으로 받아요.';
 }
 
 function setUpdating(on) {
   $('update').disabled = on;
-  $('update').textContent = on ? 'Updating…' : 'Update lists';
+  $('update').textContent = on ? '업데이트 중…' : '목록 업데이트';
 }
 
 chrome.storage.local.get({ enabled: true, stats: null, meta: null }, ({ enabled, stats, meta }) => {
@@ -86,7 +86,7 @@ function renderSite(disabledSites) {
   const off = disabledSites.some(d => siteHost === d || siteHost.endsWith('.' + d));
   $('siteToggle').checked = !off;
   $('siteCard').classList.toggle('off', off);
-  $('siteStatus').textContent = off ? 'Off on this site — nothing is blocked here' : 'Blocking on this site';
+  $('siteStatus').textContent = off ? '이 사이트에서는 꺼져 있어요 — 아무것도 차단하지 않아요' : '이 사이트에서 차단 중';
 }
 
 chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
@@ -120,7 +120,7 @@ $('update').addEventListener('click', () => {
   chrome.runtime.sendMessage({ type: 'update' }, res => {
     setUpdating(false);
     if (chrome.runtime.lastError || !res?.ok) {
-      $('meta').textContent = 'Update failed: ' + (res?.error || chrome.runtime.lastError?.message || 'unknown error');
+      $('meta').textContent = '업데이트 실패: ' + (res?.error || chrome.runtime.lastError?.message || '알 수 없는 오류');
     }
   });
 });

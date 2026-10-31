@@ -4,6 +4,7 @@
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { localizeAdblock } from "./localize-adblock.mjs";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const src = resolve(process.argv[2] || join(root, "..", "extension", "adblock"));
@@ -43,5 +44,7 @@ const THEME = `  <link rel="stylesheet" href="../../ui/tokens.css">
   </style>
 `;
 await patch("popup.html", [["</head>", THEME + "</head>"]]);
+
+await localizeAdblock(dst); // Korean popup strings
 
 console.log(`synced ${src} -> ${dst}`);
