@@ -34,6 +34,7 @@ const PATHS = {
   bookmark: '<path d="M6 3h12v18l-6-4-6 4z"/>',
   more: '<circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>',
   chevronRight: '<path d="m9 6 6 6-6 6"/>',
+  maximize: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
   chevronDown: '<path d="m6 9 6 6 6-6"/>',
   arrowLeft: '<path d="M19 12H5M11 6l-6 6 6 6"/>',
   arrowRight: '<path d="M5 12h14M13 6l6 6-6 6"/>',

@@ -79,10 +79,11 @@ window.chrome = {
   runtime: { id: "preview", getURL: (p) => ORIGIN + (p.startsWith("/") ? p : "/" + p), openOptionsPage() {}, sendMessage: async (m) => m && m.type === "ws:state" ? { activeId: "personal", workspaces: store.workspaces.map((w, i) => ({ ...w, count: [5, 3, 0][i] })) } : {}, onMessage: ev() },
   storage: { local: area(store), session: area(sess), onChanged: ev() },
   tabs: { query: async () => tabsAll.filter((t) => t.windowId === 1 && !t.url.includes('newtab')), update: async () => ({}), create: async () => ({}), remove: async () => {}, onCreated: ev(), onRemoved: ev(), onUpdated: ev(), onActivated: ev(), onMoved: ev(), onAttached: ev(), onDetached: ev() },
-  windows: { getCurrent: async () => ({ id: 1 }), getAll: async () => wins, getLastFocused: async () => ({ id: 1 }), update: async () => ({}), onRemoved: ev(), onFocusChanged: ev() },
+  windows: { create: async () => ({}), getCurrent: async () => ({ id: 1 }), getAll: async () => wins, getLastFocused: async () => ({ id: 1 }), update: async () => ({}), onRemoved: ev(), onFocusChanged: ev() },
   bookmarks: { getTree: async () => tree, search: async (q) => { const needle = typeof q === "string" ? q.toLowerCase() : ""; return flat(tree[0]).filter((n) => typeof q === "string" ? (n.title + n.url).toLowerCase().includes(needle) : n.url === q.url); }, create: async () => ({}), remove: async () => {}, onCreated: ev(), onRemoved: ev(), onChanged: ev(), onMoved: ev() },
   history: { search: async ({ text }) => hist.filter((h) => !text || (h.title + h.url).toLowerCase().includes(text.toLowerCase())), deleteUrl: async () => {}, onVisited: ev(), onVisitRemoved: ev() },
   search: { query() {} },
+  webNavigation: { onCommitted: ev(), onHistoryStateUpdated: ev() },
   sidePanel: { open: async () => {} },
   scripting: { executeScript: async () => [{ result: { selection: "", text: "예시 페이지 본문" } }] },
 };
