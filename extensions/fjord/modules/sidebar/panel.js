@@ -1,88 +1,77 @@
 import { Store } from "./store.js";
 import { icon } from "../../ui/icons.js";
-import { glyphColor } from "../../ui/glyph.js";
+import { PANES, TOOLS, DEFAULT_PANE, paneById, toolById, isClaudeSite } from "./panes.js";
+import { favicon, h } from "./kit.js";
 
 const $ = (id) => document.getElementById(id);
-let state = { items: [], ui: { collapsed: true, activeId: null } };
+let state = { items: [], ui: { activeId: null } };
+let current = null; // { id, destroy } of the mounted native pane
 
-// Built-in modules of this extension, shown as extension pages inside the panel.
-const BUILTINS = [
-  { id: "@workspaces", name: "워크스페이스", icon: "layers", page: "../workspaces/popup.html" },
-  { id: "@adblock", name: "광고 차단", icon: "shield", page: "../adblock/popup.html" },
-];
-const builtin = (id) => BUILTINS.find((b) => b.id === id);
+const NATIVE = {
+  "@claude": () => import("./panes/claude.js"),
+  "@bookmarks": () => import("./panes/bookmarks.js"),
+  "@history": () => import("./panes/history.js"),
+  "@tabs": () => import("./panes/tabs.js"),
+};
 
-// Letter avatar (also the favicon fallback): colour derived from the name.
-function glyph(name, url) {
-  const el = document.createElement("span");
-  el.className = "fj-glyph";
-  el.style.background = glyphColor(name, url);
-  el.textContent = (name.trim()[0] || "?").toUpperCase();
-  return el;
-}
+const sites = () => state.items.filter((i) => !isClaudeSite(i));
+const activeId = () => state.ui.activeId || DEFAULT_PANE;
+const validId = (id) => !id || paneById(id) || toolById(id) || state.items.some((i) => i.id === id);
 
-// Site's own /favicon.ico (no third-party lookup); falls back to the letter avatar.
-function siteGlyph(item) {
-  const wrap = document.createElement("span");
-  wrap.className = "rail-glyph";
-  const img = document.createElement("img");
-  img.alt = "";
-  img.src = new URL("/favicon.ico", item.url).href;
-  img.onerror = () => img.replaceWith(glyph(item.name, item.url));
-  wrap.append(img);
-  return wrap;
-}
-
-function iconGlyph(name) {
-  const wrap = document.createElement("span");
-  wrap.className = "rail-glyph";
-  wrap.innerHTML = icon(name);
-  return wrap;
-}
-
-function railButton(id, title, glyphEl, label) {
-  const b = document.createElement("button");
-  b.className = "rail-btn" + (id === state.ui.activeId ? " active" : "");
-  b.title = title;
-  b.append(glyphEl);
-  const text = document.createElement("span");
-  text.className = "rail-label";
-  text.textContent = label;
-  b.append(text);
-  b.onclick = () => open(id);
+function tab(id, title, glyph, label) {
+  const active = id === activeId();
+  const b = h("button", { class: "ptab" + (active ? " active" : ""), type: "button", role: "tab", "aria-selected": String(active), title, onclick: () => select(id) },
+    h("span", { class: "ptab-ico" }, glyph), h("span", { class: "ptab-label" }, label));
   return b;
 }
 
-function render() {
-  document.body.classList.toggle("collapsed", state.ui.collapsed);
-  $("toggleIcon").innerHTML = icon(state.ui.collapsed ? "menu" : "collapse");
-  $("settingsIcon").innerHTML = icon("sliders");
+const iconGlyph = (name) => h("span", { class: "g", html: icon(name) });
+
+function renderTabs() {
+  $("tabs").replaceChildren(
+    ...PANES.map((p) => tab(p.id, p.name, iconGlyph(p.icon), p.name)),
+    sites().length && h("span", { class: "sep" }),
+    ...sites().map((i) => tab(i.id, `${i.name}\n${i.url}`, favicon(i.url, i.name), i.name)),
+    h("span", { class: "sep" }),
+    ...TOOLS.map((t) => tab(t.id, t.name, iconGlyph(t.icon), t.name))
+  );
+  $("tabs").querySelector(".ptab.active")?.scrollIntoView({ inline: "nearest", block: "nearest" });
+  $("settings").innerHTML = icon("sliders");
   $("reload").innerHTML = icon("reload");
   $("external").innerHTML = icon("external");
-
-  $("items").replaceChildren(
-    ...state.items.map((item) => railButton(item.id, `${item.name}\n${item.url}`, siteGlyph(item), item.name))
-  );
-  $("builtins").replaceChildren(...BUILTINS.map((b) => railButton(b.id, b.name, iconGlyph(b.icon), b.name)));
-  showActive();
 }
 
-function showActive() {
+async function show() {
+  const id = activeId();
   const frame = $("frame");
-  const b = builtin(state.ui.activeId);
-  const item = state.items.find((i) => i.id === state.ui.activeId);
-  const target = b ? { name: b.name, url: new URL(b.page, location.href).href, external: false } : item && { ...item, external: true };
+  const pane = $("pane");
+  const bar = $("bar");
+  const native = NATIVE[id];
 
-  if (!target) {
+  if (current && current.id !== id) { current.destroy?.(); current = null; pane.replaceChildren(); }
+
+  if (native) {
     frame.hidden = true;
     frame.removeAttribute("src");
     delete frame.dataset.url;
-    $("empty").hidden = false;
-    $("title").textContent = "사이트를 선택하세요";
-    $("external").hidden = true;
+    bar.hidden = true;
+    pane.hidden = false;
+    if (!current) {
+      const mod = await native();
+      if (activeId() !== id) return; // switched again while loading
+      pane.className = "pane pane-" + id.slice(1);
+      current = { id, ...(await mod.mount(pane)) };
+    }
     return;
   }
-  $("empty").hidden = true;
+
+  // embedded page: one of our own tool pages or a pinned site
+  pane.hidden = true;
+  const tool = toolById(id);
+  const item = state.items.find((i) => i.id === id);
+  const target = tool ? { name: tool.name, url: new URL(tool.page, location.href).href, external: false } : item && { ...item, external: true };
+  if (!target) return;
+  bar.hidden = false;
   frame.hidden = false;
   $("external").hidden = !target.external;
   $("title").textContent = target.name;
@@ -92,19 +81,13 @@ function showActive() {
   }
 }
 
-async function open(id) {
+async function select(id) {
   state.ui.activeId = id;
   await Store.saveUi(state.ui);
-  render();
+  renderTabs();
+  show();
 }
 
-const validActive = (s) => !s.ui.activeId || builtin(s.ui.activeId) || s.items.some((i) => i.id === s.ui.activeId);
-
-$("toggle").onclick = async () => {
-  state.ui.collapsed = !state.ui.collapsed;
-  await Store.saveUi(state.ui);
-  render();
-};
 $("settings").onclick = () => chrome.runtime.openOptionsPage();
 $("reload").onclick = () => {
   const f = $("frame");
@@ -115,16 +98,28 @@ $("external").onclick = () => {
   if (item) chrome.tabs.create({ url: item.url });
 };
 
-chrome.storage.onChanged.addListener(async (_changes, area) => {
-  if (area !== "local") return;
+// arrow keys move between the panel tabs
+$("tabs").addEventListener("keydown", (e) => {
+  if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+  const all = [...$("tabs").querySelectorAll(".ptab")];
+  const i = all.indexOf(document.activeElement);
+  if (i < 0) return;
+  all[(i + (e.key === "ArrowRight" ? 1 : -1) + all.length) % all.length].focus();
+});
+
+chrome.storage.onChanged.addListener(async (changes, area) => {
+  if (area !== "local" || !(changes.items || changes.ui)) return;
   const next = await Store.load();
-  if (!validActive(next)) next.ui.activeId = null;
+  if (!validId(next.ui.activeId)) next.ui.activeId = null;
+  const changedPane = next.ui.activeId !== state.ui.activeId;
   state = next;
-  render();
+  renderTabs();
+  if (changedPane || changes.items) show(); // the rail asked for another pane, or the site list changed
 });
 
 (async () => {
   state = await Store.load();
-  if (!validActive(state)) state.ui.activeId = null;
-  render();
+  if (!validId(state.ui.activeId)) state.ui.activeId = null;
+  renderTabs();
+  show();
 })();

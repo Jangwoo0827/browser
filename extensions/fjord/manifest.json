@@ -15,7 +15,10 @@
     "alarms",
     "tabs",
     "search",
-    "management"
+    "management",
+    "bookmarks",
+    "history",
+    "favicon"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -112,7 +115,8 @@
         "ui/glyph.js",
         "modules/rail/rail.js",
         "modules/rail/rail.css",
-        "modules/sidebar/store.js"
+        "modules/sidebar/store.js",
+        "modules/sidebar/panes.js"
       ],
       "matches": [
         "http://*/*",
