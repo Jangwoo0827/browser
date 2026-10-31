@@ -3,6 +3,8 @@ export const PANES = [
   { id: "@claude", name: "Claude", icon: "sparkles" },
   { id: "@bookmarks", name: "북마크", icon: "bookmark" },
   { id: "@history", name: "기록", icon: "history" },
+  { id: "@readinglist", name: "읽기 목록", icon: "book" },
+  { id: "@notes", name: "메모", icon: "edit" },
   { id: "@tabs", name: "열린 탭", icon: "tabs" },
 ];
 

@@ -18,7 +18,11 @@
     "management",
     "bookmarks",
     "history",
-    "favicon"
+    "favicon",
+    "contextMenus",
+    "pageCapture",
+    "downloads",
+    "readingList"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -57,6 +61,18 @@
         "default": "Ctrl+Shift+K"
       },
       "description": "Quick find: tabs, bookmarks, history, commands"
+    },
+    "reader-mode": {
+      "suggested_key": {
+        "default": "Alt+R"
+      },
+      "description": "Reader mode"
+    },
+    "screenshot": {
+      "suggested_key": {
+        "default": "Alt+S"
+      },
+      "description": "Screenshot of a selected region"
     }
   },
   "declarative_net_request": {
@@ -115,6 +131,28 @@
       ],
       "run_at": "document_idle",
       "all_frames": false
+    },
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "modules/tools/page.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    },
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "modules/tools/video.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
     }
   ],
   "icons": {

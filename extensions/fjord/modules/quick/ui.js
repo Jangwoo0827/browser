@@ -17,8 +17,19 @@ function commandList(inPage) {
     { title: "다운로드", sub: "chrome://downloads", icon: "download", run: () => send({ type: "quick:open-internal", url: "chrome://downloads" }) },
     { title: "확장 프로그램", sub: "chrome://extensions", icon: "layers", run: () => send({ type: "quick:open-internal", url: "chrome://extensions" }) },
   ];
+  const tool = (id) => () => send({ type: "tools:run", id });
+  list.push(
+    { title: "리더 모드", sub: "글만 깔끔하게 읽기", icon: "book", run: tool("reader") },
+    { title: "스크린샷: 보이는 영역", sub: "다운로드 폴더에 저장", icon: "maximize", run: tool("shot-visible") },
+    { title: "스크린샷: 영역 선택", sub: "드래그해서 캡처 (Alt+S)", icon: "maximize", run: tool("shot-region") },
+    { title: "스크린샷: 전체 페이지", sub: "끝까지 스크롤해서 한 장으로", icon: "maximize", run: tool("shot-full") },
+    { title: "페이지 저장 (.mhtml)", sub: "오프라인에서도 열려요", icon: "download", run: tool("save-mhtml") },
+    { title: "이 페이지 번역", sub: "Google 번역으로 열기 (주소가 Google로 전송돼요)", icon: "globe", run: tool("translate") },
+    { title: "PDF로 저장 / 인쇄", sub: "인쇄 창에서 PDF로 저장 선택", icon: "download", run: tool("print") },
+    { title: "읽기 목록에 추가", sub: "나중에 읽기", icon: "book", run: tool("reading-add") }
+  );
   if (inPage) { // the side panel can only be opened from a page (it needs the click's user activation)
-    for (const [id, title, ico] of [["@claude", "Claude 패널 열기", "sparkles"], ["@bookmarks", "북마크 패널 열기", "bookmark"], ["@history", "기록 패널 열기", "history"], ["@tabs", "열린 탭 패널 열기", "tabs"]]) {
+    for (const [id, title, ico] of [["@claude", "Claude 패널 열기", "sparkles"], ["@bookmarks", "북마크 패널 열기", "bookmark"], ["@history", "기록 패널 열기", "history"], ["@notes", "메모 패널 열기", "edit"], ["@readinglist", "읽기 목록 패널 열기", "book"], ["@tabs", "열린 탭 패널 열기", "tabs"]]) {
       list.push({ title, sub: "사이드 패널", icon: ico, run: () => send({ type: "rail:open", id }) });
     }
   }

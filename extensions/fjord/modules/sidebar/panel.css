@@ -159,3 +159,27 @@ body { display: flex; flex-direction: column; background: var(--fj-color-bg-surf
 .code-note code { padding: 0 5px; border-radius: 4px; background: var(--fj-color-bg-canvas); font: 500 12px/18px ui-monospace, Consolas, monospace; }
 .link { border: 0; background: transparent; padding: 0; color: var(--fj-color-accent-primary); font: inherit; text-decoration: underline; cursor: pointer; }
 .claude-frame { flex: 1; width: 100%; min-height: 0; border: 0; background: var(--fj-color-bg-surface); }
+
+/* Notes pane */
+.notes-list-view, .note-editor { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.note-card { position: relative; display: flex; flex-direction: column; gap: 2px; margin: 0 0 var(--fj-space-3); padding: var(--fj-space-4) var(--fj-space-5); border-radius: var(--fj-radius-lg); background: var(--fj-color-bg-canvas); border: 1px solid var(--fj-color-border-subtle); cursor: pointer; outline: none; transition: border-color var(--fj-motion), background var(--fj-motion); }
+.note-card:hover, .note-card:focus-visible { border-color: var(--fj-color-accent-primary); }
+.note-top { display: flex; align-items: baseline; gap: var(--fj-space-4); }
+.note-title { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 600 13.5px/20px var(--fj-font); }
+.note-when { flex: none; font: 400 11.5px/16px var(--fj-font); color: var(--fj-color-text-muted); }
+.note-snippet { margin: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font: 400 12.5px/18px var(--fj-font); color: var(--fj-color-text-secondary); }
+.note-link { display: inline-flex; align-items: center; gap: var(--fj-space-3); margin-top: var(--fj-space-2); font: 400 11.5px/16px var(--fj-font); color: var(--fj-color-text-muted); }
+.note-link .fav, .note-link .fav-holder { width: 14px; height: 14px; }
+.note-card .row-actions { position: absolute; right: var(--fj-space-3); bottom: var(--fj-space-3); }
+.note-card:hover .row-actions, .note-card:focus-within .row-actions { display: flex; }
+.note-editor .pane-bar .grow { flex: 1; }
+.note-body { flex: 1; min-height: 0; margin: 0 var(--fj-space-5); padding: var(--fj-space-4) 0; border: 0; outline: 0; resize: none; background: transparent; color: var(--fj-color-text-primary); font: 400 14px/22px var(--fj-font); }
+.note-body::placeholder { color: var(--fj-color-text-muted); }
+.note-foot { flex: none; display: flex; align-items: center; gap: var(--fj-space-4); padding: var(--fj-space-4) var(--fj-space-5); border-top: 1px solid var(--fj-color-border-subtle); }
+.note-attach { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--fj-space-2); }
+.note-meta { flex: none; font: 400 11.5px/16px var(--fj-font); color: var(--fj-color-text-muted); }
+
+/* Reading list */
+.row .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: transparent; }
+.row .dot.on { background: var(--fj-color-accent-primary); }
+.row.read .row-title { font-weight: 400; color: var(--fj-color-text-secondary); }

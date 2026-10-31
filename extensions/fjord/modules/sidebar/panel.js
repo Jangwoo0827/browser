@@ -11,6 +11,8 @@ const NATIVE = {
   "@claude": () => import("./panes/claude.js"),
   "@bookmarks": () => import("./panes/bookmarks.js"),
   "@history": () => import("./panes/history.js"),
+  "@notes": () => import("./panes/notes.js"),
+  "@readinglist": () => import("./panes/readinglist.js"),
   "@tabs": () => import("./panes/tabs.js"),
 };
 

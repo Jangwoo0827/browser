@@ -8,3 +8,5 @@ import "./modules/adblock/background.js";
 import "./modules/claude/background.js";
 import "./modules/rail/background.js";
 import "./modules/quick/background.js";
+import "./modules/notes/background.js";
+import "./modules/tools/background.js";

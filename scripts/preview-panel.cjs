@@ -26,6 +26,15 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     return res.end(`<body style="margin:0;background:#262624;color:#e8e6dc;font:15px system-ui;display:flex;flex-direction:column;height:100vh"><div style="flex:1;display:grid;place-items:center;text-align:center"><div><div style="font-size:30px;color:#d97757">✻</div><p>안녕하세요, 무엇을 도와드릴까요?</p></div></div><div style="margin:12px;padding:14px;border:1px solid #4a4a46;border-radius:14px;color:#9a9890">Claude에게 질문하기</div></body>`);
   }
+  if (u.pathname === "/mock-article") {
+    const para = (n) => `<p>${n}번째 문단입니다. 리더 모드는 광고와 메뉴를 걷어내고 글만 깔끔하게 보여 줘야 해요. 이 문장은 충분히 길어서 본문으로 판단되어야 합니다. 한국어 글은 한 문단에도 글자가 많이 들어갑니다.</p>`;
+    res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    return res.end(`<title>피오르드에서 보낸 하루 - 예시 블로그</title><meta property="og:site_name" content="예시 블로그"><meta name="author" content="홍길동"><body><nav><a href="/">홈</a> <a href="/about">소개</a> 메뉴메뉴메뉴</nav><main><article><h1>피오르드에서 보낸 하루</h1>${[1, 2, 3, 4, 5, 6].map(para).join("")}<blockquote>인용문도 남아야 해요.</blockquote><img src="/img.png" alt="사진"></article><aside class="ads">광고광고광고 지금 구매</aside></main><footer>푸터 저작권 푸터</footer></body>`);
+  }
+  if (u.pathname === "/mock-video") {
+    res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    return res.end(`<body style="margin:0;background:#111"><video id="v" width="560" height="315" style="display:block;margin:60px auto;background:#000" controls></video></body>`);
+  }
   if (u.pathname === "/mock-page") {
     res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     return res.end(`<body style="margin:0;font:16px system-ui;background:#fff;color:#222"><div style="max-width:720px;margin:60px auto;padding:0 24px"><h1>예시 페이지</h1><p>레일이 페이지 가장자리에 붙어 있어요. 가장자리에 마우스를 올리면 펼쳐져요.</p><p>${"본문 텍스트 ".repeat(120)}</p></div></body>`);
@@ -67,6 +76,11 @@ const tree = [{ id: "0", title: "", children: [
   { id: "2", title: "기타 북마크", parentId: "0", children: [bm("40", "YouTube", "https://www.youtube.com/"), bm("41", "위키백과", "https://ko.wikipedia.org/")] },
 ] }];
 const flat = (n, out = []) => { if (n.url) out.push(n); (n.children || []).forEach((c) => flat(c, out)); return out; };
+const readingEntries = [
+  { url: "https://example.com/a", title: "나중에 읽을 글 A", hasBeenRead: false, creationTime: now - 3 * 3600e3, lastUpdateTime: now },
+  { url: "https://example.org/b", title: "이미 읽은 글 B", hasBeenRead: true, creationTime: now - 30 * 3600e3, lastUpdateTime: now },
+  { url: "https://news.ycombinator.com/c", title: "해커뉴스 글 C", hasBeenRead: false, creationTime: now - 5 * 3600e3, lastUpdateTime: now },
+];
 const hist = [
   ["Claude", "https://claude.ai/new", 8], ["GitHub — Jangwoo0827/browser", "https://github.com/Jangwoo0827/browser", 35], ["Electron 문서", "https://www.electronjs.org/docs/latest", 90],
   ["네이버", "https://www.naver.com/", 240], ["MDN Web Docs", "https://developer.mozilla.org/ko/", 60 * 26], ["Chrome 확장 프로그램 문서", "https://developer.chrome.com/docs/extensions", 60 * 27],
@@ -95,6 +109,13 @@ window.chrome = {
   windows: { create: rec("windows.create"), getCurrent: async () => ({ id: 1 }), getAll: async () => wins, getLastFocused: async () => ({ id: 1 }), update: rec("windows.update"), onRemoved: ev(), onFocusChanged: ev() },
   bookmarks: { getTree: async () => tree, search: async (q) => { const needle = typeof q === "string" ? q.toLowerCase() : ""; return flat(tree[0]).filter((n) => typeof q === "string" ? (n.title + n.url).toLowerCase().includes(needle) : n.url === q.url); }, create: async () => ({}), remove: async () => {}, onCreated: ev(), onRemoved: ev(), onChanged: ev(), onMoved: ev() },
   history: { search: async ({ text }) => hist.filter((h) => !text || (h.title + h.url).toLowerCase().includes(text.toLowerCase())), deleteUrl: async () => {}, onVisited: ev(), onVisitRemoved: ev() },
+  readingList: {
+    query: async () => readingEntries.map((e) => ({ ...e })),
+    addEntry: async (e) => { window.__calls.push(["readingList.add", e]); readingEntries.push({ ...e, creationTime: Date.now(), lastUpdateTime: Date.now() }); },
+    removeEntry: async ({ url }) => { window.__calls.push(["readingList.remove", url]); const i = readingEntries.findIndex((e) => e.url === url); if (i >= 0) readingEntries.splice(i, 1); },
+    updateEntry: async (u) => { window.__calls.push(["readingList.update", u]); const e = readingEntries.find((x) => x.url === u.url); if (e) Object.assign(e, u); },
+    onEntryAdded: ev(), onEntryRemoved: ev(), onEntryUpdated: ev(),
+  },
   search: { query: rec("search.query") },
   commands: { onCommand: ev() },
   webNavigation: { onCommitted: ev(), onHistoryStateUpdated: ev() },
@@ -210,6 +231,113 @@ app.whenReady().then(async () => {
         items = await text();
         check('workspaces are searchable', items.some((t) => t === '워크스페이스:업무'), items);
         qw.close();
+        await sleep(250);
+      }
+      { // notes pane: create, edit, list, search, delete + undo (real pane code on the mocked storage)
+        const nw = mk(380, 640);
+        nw.webContents.on('console-message', (...a) => console.log('console', JSON.stringify(a.map((x) => (x && x.message) || x)).slice(0, 400)));
+        await nw.loadURL(`${base}/modules/sidebar/panel.html#pane=%40notes`);
+        await sleep(900);
+        const ev = (code) => nw.webContents.executeJavaScript(code);
+        const log = (name, ok, extra) => console.log(`${ok ? 'PASS' : 'FAIL'}  notes pane: ${name}${extra ? '  ' + JSON.stringify(extra) : ''}`);
+        log('starts empty', (await ev(`document.querySelectorAll('.note-card').length`)) === 0);
+        await ev(`document.querySelector('.pane-bar .ibtn.primary').click()`);
+        await sleep(300);
+        await ev(`(() => { const a = document.querySelector('.note-body'); a.value = '장보기 목록\\n우유, 달걀, 바나나'; a.dispatchEvent(new Event('input')); })()`);
+        await sleep(600);
+        log('typing saves the note', ((await ev(`chrome.storage.local.get('notes')`)).notes || []).length === 1);
+        await shot(nw, `notes-editor-${theme}.png`);
+        await ev(`[...document.querySelectorAll('.chip.nav')].find((b) => b.textContent.includes('목록')).click()`);
+        await sleep(300);
+        const titles = await ev(`[...document.querySelectorAll('.note-title')].map((n) => n.textContent)`);
+        log('list shows the title (first line)', titles[0] === '장보기 목록', titles);
+        await ev(`document.querySelector('.pane-bar .ibtn.primary').click()`);
+        await sleep(200);
+        await ev(`[...document.querySelectorAll('.chip.nav')].find((b) => b.textContent.includes('목록')).click()`);
+        await sleep(300);
+        log('a note left empty is not kept', (await ev(`document.querySelectorAll('.note-card').length`)) === 1);
+        await ev(`(() => { const i = document.querySelector('.search-input'); i.value = '달걀'; i.dispatchEvent(new Event('input')); })()`);
+        await sleep(300);
+        log('search looks into the body', (await ev(`document.querySelectorAll('.note-card').length`)) === 1);
+        await ev(`(() => { const i = document.querySelector('.search-input'); i.value = '없는말'; i.dispatchEvent(new Event('input')); })()`);
+        await sleep(300);
+        log('search with no hit shows the empty state', (await ev(`document.querySelectorAll('.note-card').length`)) === 0);
+        await ev(`(() => { const i = document.querySelector('.search-input'); i.value = ''; i.dispatchEvent(new Event('input')); })()`);
+        await sleep(300);
+        await shot(nw, `notes-list-${theme}.png`);
+        await ev(`document.querySelector('.note-card .ibtn').click()`);
+        await sleep(400);
+        log('delete removes it', ((await ev(`chrome.storage.local.get('notes')`)).notes || []).length === 0);
+        await ev(`document.querySelector('.toast-act').click()`);
+        await sleep(400);
+        log('undo brings it back', ((await ev(`chrome.storage.local.get('notes')`)).notes || []).length === 1);
+        nw.close();
+        await sleep(250);
+      }
+      { // reading list pane
+        const rw2 = mk(380, 560);
+        await rw2.loadURL(`${base}/modules/sidebar/panel.html#pane=%40readinglist`);
+        await sleep(900);
+        const ev = (code) => rw2.webContents.executeJavaScript(code);
+        const log = (name, ok, extra) => console.log(`${ok ? 'PASS' : 'FAIL'}  reading list: ${name}${extra ? '  ' + JSON.stringify(extra) : ''}`);
+        let titles = await ev(`[...document.querySelectorAll('.row-title')].map((n) => n.textContent)`);
+        log('unread entries come first', titles.length === 3 && titles[2] === '이미 읽은 글 B', titles);
+        await shot(rw2, `readinglist-${theme}.png`);
+        await ev(`[...document.querySelectorAll('.chip.nav')].find((b) => b.textContent.includes('안 읽음')).click()`);
+        await sleep(300);
+        log('the unread filter hides read entries', (await ev(`document.querySelectorAll('.row').length`)) === 2);
+        await ev(`document.querySelector('.pane-bar .ibtn.primary').click()`);
+        await sleep(400);
+        const calls = await ev(`window.__calls.filter((c) => c[0] === 'readingList.add').length`);
+        log('the + button adds the current page', calls === 1, calls);
+        rw2.close();
+        await sleep(250);
+      }
+      { // reader mode: extraction + overlay, against an article page
+        const aw = mk(960, 640);
+        await aw.loadURL(`${base}/mock-article`);
+        const ev = (code) => aw.webContents.executeJavaScript(code);
+        const log = (name, ok, extra) => console.log(`${ok ? 'PASS' : 'FAIL'}  reader: ${name}${extra ? '  ' + JSON.stringify(extra) : ''}`);
+        await ev(require("node:fs").readFileSync(path.join(ROOT, "modules", "tools", "page.js"), "utf8").replace(/^/, "") + "\n0");
+        const art = await ev(`window.__fjordReader.extractArticle()`);
+        log('finds the article, its title and author', art && art.title === '피오르드에서 보낸 하루' && art.byline === '홍길동' && art.site === '예시 블로그', art && { t: art.title, b: art.byline });
+        log('keeps the paragraphs and the quote', art && art.html.includes('3번째 문단') && art.html.includes('인용문'));
+        log('drops the menu, ads and footer', art && !art.html.includes('메뉴메뉴') && !art.html.includes('광고광고') && !art.html.includes('푸터'));
+        await ev(`chrome.runtime.sendMessage({ type: 'tools:reader' }).then(() => 0)`);
+        await sleep(500);
+        log('the overlay opens', await ev(`!!document.getElementById('fjord-reader')`));
+        await shot(aw, `reader-${theme}.png`);
+        await ev(`chrome.runtime.sendMessage({ type: 'tools:reader' }).then(() => 0)`);
+        await sleep(200);
+        log('and closes again', await ev(`!document.getElementById('fjord-reader')`));
+        const plain = mk(600, 400);
+        await plain.loadURL(`${base}/mock-video`);
+        await plain.webContents.executeJavaScript(require("node:fs").readFileSync(path.join(ROOT, "modules", "tools", "page.js"), "utf8") + "\n0");
+        const none = await plain.webContents.executeJavaScript(`window.__fjordReader.extractArticle()`);
+        log('a page without an article is refused', none === null, none && none.title);
+        plain.close();
+        aw.close();
+        await sleep(250);
+      }
+      { // video tools: speed strip, keys
+        const vw = mk(900, 560);
+        await vw.loadURL(`${base}/mock-video`);
+        const ev = (code) => vw.webContents.executeJavaScript(code);
+        const log = (name, ok, extra) => console.log(`${ok ? 'PASS' : 'FAIL'}  video: ${name}${extra ? '  ' + JSON.stringify(extra) : ''}`);
+        await ev(require("node:fs").readFileSync(path.join(ROOT, "modules", "tools", "video.js"), "utf8") + "\n0");
+        await ev(`document.dispatchEvent(new MouseEvent('mousemove', { clientX: 450, clientY: 200, bubbles: true }))`);
+        await sleep(400);
+        log('the strip appears over the video', await ev(`!![...document.documentElement.children].find((el) => el.tagName === 'DIV' && el.style.zIndex === '2147483647')`));
+        await shot(vw, `video-${theme}.png`);
+        const key = (k) => ev(`document.body.dispatchEvent(new KeyboardEvent('keydown', { key: ${JSON.stringify(k)}, bubbles: true }))`);
+        await key(']');
+        await key(']');
+        log(']] speeds up to 1.5×', (await ev(`document.getElementById('v').playbackRate`)) === 1.5);
+        await key('[');
+        log('[ slows down by a step', (await ev(`document.getElementById('v').playbackRate`)) === 1.25);
+        await key('\\');
+        log('\\ resets', (await ev(`document.getElementById('v').playbackRate`)) === 1);
+        vw.close();
         await sleep(250);
       }
       // rail on a normal page: collapsed, then expanded
