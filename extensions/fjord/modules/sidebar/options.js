@@ -1,6 +1,7 @@
 import { Store } from "./store.js";
 import { icon } from "../../ui/icons.js";
 import { glyphColor } from "../../ui/glyph.js";
+import { resolveFavicon } from "../../ui/favicon.js";
 
 const $ = (id) => document.getElementById(id);
 let items = [];
@@ -27,10 +28,14 @@ function glyph(item) {
 
 function row(item, index) {
   const li = document.createElement("li");
-  const img = document.createElement("img");
-  img.alt = "";
-  img.src = `${chrome.runtime.getURL("/_favicon/")}?pageUrl=${encodeURIComponent(item.url)}&size=64`;
-  img.onerror = () => img.replaceWith(glyph(item));
+  const img = glyph(item);
+  resolveFavicon(item.url, 64).then((r) => {
+    if (!r) return;
+    const real = document.createElement("img");
+    real.alt = "";
+    real.src = r.src;
+    img.replaceWith(real);
+  });
   const who = document.createElement("span");
   who.className = "who";
   who.append(Object.assign(document.createElement("span"), { className: "name", textContent: item.name }), Object.assign(document.createElement("span"), { className: "url", textContent: item.url }));

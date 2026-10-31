@@ -82,6 +82,7 @@ body { display: flex; flex-direction: column; background: var(--fj-color-bg-surf
 .row.current { background: var(--fj-color-bg-active); }
 @media (prefers-color-scheme: dark) { .row.current { background: rgba(129, 140, 248, .16); } }
 .row.current::before { content: ""; position: absolute; left: 0; top: 9px; bottom: 9px; width: 3px; border-radius: 2px; background: var(--fj-color-accent-primary); }
+.fav-holder { flex: none; display: grid; place-items: center; width: 18px; height: 18px; }
 .fav { flex: none; width: 16px; height: 16px; border-radius: 4px; object-fit: contain; }
 .fav.fj-glyph { width: 18px; height: 18px; font-size: 10px; }
 .row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }

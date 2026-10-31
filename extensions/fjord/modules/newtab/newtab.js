@@ -1,6 +1,7 @@
 import { icon } from "../../ui/icons.js";
 import { glyphColor } from "../../ui/glyph.js";
 import { loadSettings, mountRail } from "../rail/rail.js";
+import { resolveFavicon } from "../../ui/favicon.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -71,12 +72,16 @@ const faviconUrl = (url, size = 64) => `${chrome.runtime.getURL("/_favicon/")}?p
 function favicon(item) {
   const wrap = document.createElement("span");
   wrap.className = "fav-wrap";
-  const img = document.createElement("img");
-  img.className = "fav";
-  img.alt = "";
-  img.src = faviconUrl(item.url);
-  img.onerror = () => img.replaceWith(glyph(item.name, item.url));
-  wrap.append(img);
+  wrap.append(glyph(item.name, item.url)); // letter avatar until (and unless) a real icon turns up
+  resolveFavicon(item.url, 64).then((r) => {
+    if (!r) return;
+    const img = document.createElement("img");
+    img.className = "fav";
+    img.alt = "";
+    img.src = r.src;
+    wrap.replaceChildren(img);
+    wrap.classList.toggle("dark", r.light); // a white logo needs a dark tile
+  });
   return wrap;
 }
 
@@ -240,6 +245,22 @@ function tick() {
   $("greeting").textContent = hr < 5 ? "늦은 시간이네요" : hr < 12 ? "좋은 아침이에요" : hr < 18 ? "좋은 오후예요" : "좋은 저녁이에요";
 }
 
+// icon for the card rows / tab pills: a letter avatar that turns into the real icon when it is found
+function smallIcon(url, title, px) {
+  const holder = document.createElement("span");
+  holder.className = "small-icon";
+  holder.style.setProperty("--px", px + "px");
+  holder.append(glyph(title || hostOf(url), url));
+  resolveFavicon(url, 32).then((r) => {
+    if (!r) return;
+    const img = document.createElement("img");
+    img.alt = "";
+    img.src = r.src;
+    holder.replaceChildren(img);
+  });
+  return holder;
+}
+
 // ---- cards: recent visits + bookmark bar (both come from Chrome itself) ----
 const hostOf = (url) => { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; } };
 
@@ -249,12 +270,7 @@ function cardRow(item) {
   a.href = item.url;
   a.title = `${item.title || item.url}
 ${item.url}`;
-  const img = document.createElement("img");
-  img.alt = "";
-  img.width = 18;
-  img.height = 18;
-  img.src = faviconUrl(item.url, 32);
-  img.onerror = () => img.replaceWith(glyph(item.title || hostOf(item.url), item.url));
+  const img = smallIcon(item.url, item.title, 18);
   const text = document.createElement("span");
   text.className = "card-text";
   const t = document.createElement("span");
@@ -316,11 +332,7 @@ ${t.url}`;
     const go = () => chrome.tabs.update(t.id, { active: true });
     el.onclick = go;
     el.onkeydown = (e) => e.key === "Enter" && go();
-    const img = document.createElement("img");
-    img.alt = "";
-    img.width = img.height = 16;
-    img.src = faviconUrl(t.url, 32);
-    img.onerror = () => img.replaceWith(glyph(t.title || hostOf(t.url), t.url));
+    const img = smallIcon(t.url, t.title, 16);
     const title = document.createElement("span");
     title.textContent = t.title || hostOf(t.url);
     el.append(img, title);

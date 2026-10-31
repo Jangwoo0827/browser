@@ -1,6 +1,7 @@
 // Small DOM kit for the side panel panes (no framework): element helper, favicons, search box, empty state, snackbar.
 import { icon } from "../../ui/icons.js";
 import { glyphColor } from "../../ui/glyph.js";
+import { resolveFavicon } from "../../ui/favicon.js";
 
 export function h(tag, props = {}, ...children) {
   const el = document.createElement(tag);
@@ -30,13 +31,17 @@ export function letter(name, url) {
   return el;
 }
 
-// Chrome's own favicon cache (works for history / bookmarks / tabs, needs the "favicon" permission); letter avatar as fallback
+// Chrome's favicon cache, then the site's own icon; a letter avatar while loading and when nothing is found
 export function favicon(url, name) {
   if (!/^https?:/i.test(url || "")) return letter(name || "•", url);
-  const img = h("img", { class: "fav", alt: "", width: 16, height: 16 });
-  img.src = `${chrome.runtime.getURL("/_favicon/")}?pageUrl=${encodeURIComponent(url)}&size=32`;
-  img.onerror = () => img.replaceWith(letter(name, url));
-  return img;
+  const holder = h("span", { class: "fav-holder" }, letter(name, url));
+  resolveFavicon(url, 32).then((r) => {
+    if (!r) return;
+    const img = h("img", { class: "fav", alt: "", width: 16, height: 16 });
+    img.src = r.src;
+    holder.replaceChildren(img);
+  });
+  return holder;
 }
 
 export const iconBtn = (name, title, onClick, cls = "") =>
