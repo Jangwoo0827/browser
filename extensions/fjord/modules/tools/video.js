@@ -75,8 +75,12 @@
     ensureStrip();
     video = v;
     const r = v.getBoundingClientRect();
-    strip.style.left = Math.max(6, r.left + 10) + "px";
-    strip.style.top = Math.max(6, r.top + 10) + "px";
+    // centred on the visible part of the video
+    const vis = { l: Math.max(r.left, 0), t: Math.max(r.top, 0), r: Math.min(r.right, innerWidth), b: Math.min(r.bottom, innerHeight) };
+    const w = strip.offsetWidth || 150;
+    const h = strip.offsetHeight || 32;
+    strip.style.left = Math.max(6, Math.round((vis.l + vis.r - w) / 2)) + "px";
+    strip.style.top = Math.max(6, Math.round((vis.t + vis.b - h) / 2)) + "px";
     label.textContent = fmt(v.playbackRate);
     strip.classList.add("on");
     clearTimeout(hideTimer);

@@ -86,9 +86,9 @@ const hist = [
   ["네이버", "https://www.naver.com/", 240], ["MDN Web Docs", "https://developer.mozilla.org/ko/", 60 * 26], ["Chrome 확장 프로그램 문서", "https://developer.chrome.com/docs/extensions", 60 * 27],
   ["YouTube", "https://www.youtube.com/", 60 * 30], ["위키백과", "https://ko.wikipedia.org/", 60 * 24 * 3 + 20], ["Hacker News", "https://news.ycombinator.com/", 60 * 24 * 3 + 50],
 ].map(([title, url, mins], i) => ({ id: String(i), title, url, lastVisitTime: now - mins * 60e3, visitCount: 3 }));
-const T = (id, windowId, title, url, extra = {}) => ({ id, windowId, title, url, active: false, ...extra });
+const T = (id, windowId, title, url, extra = {}) => ({ id, windowId, title, url, active: false, groupId: -1, ...extra });
 const wins = [
-  { id: 1, tabs: [T(1, 1, "Fjord — 새 탭", ORIGIN + "/modules/newtab/newtab.html"), T(2, 1, "GitHub — Jangwoo0827/browser", "https://github.com/Jangwoo0827/browser", { active: true }), T(3, 1, "Electron 문서", "https://www.electronjs.org/docs"), T(4, 1, "YouTube — 로파이 라디오", "https://www.youtube.com/watch?v=x", { audible: true }), T(5, 1, "네이버", "https://www.naver.com/")] },
+  { id: 1, tabs: [T(1, 1, "Fjord — 새 탭", ORIGIN + "/modules/newtab/newtab.html"), T(2, 1, "GitHub — Jangwoo0827/browser", "https://github.com/Jangwoo0827/browser", { active: true }), T(9, 1, "GitHub — 이슈", "https://github.com/Jangwoo0827/browser/issues"), T(3, 1, "Electron 문서", "https://www.electronjs.org/docs", { groupId: 100 }), T(4, 1, "YouTube — 로파이 라디오", "https://www.youtube.com/watch?v=x", { audible: true, groupId: 100 }), T(5, 1, "네이버", "https://www.naver.com/")] },
   { id: 2, tabs: [T(6, 2, "Claude", "https://claude.ai/new", { active: true }), T(7, 2, "MDN Web Docs", "https://developer.mozilla.org/ko/"), T(8, 2, "Hacker News", "https://news.ycombinator.com/")] },
 ];
 const tabsAll = wins.flatMap((w) => w.tabs);
@@ -105,7 +105,7 @@ window.chrome = {
     }),
   },
   storage: { local: area(store), session: area(sess), onChanged: ev() },
-  tabs: { query: async () => tabsAll.filter((t) => t.windowId === 1 && !t.url.includes('newtab')), update: rec("tabs.update"), create: rec("tabs.create"), remove: async () => {}, onCreated: ev(), onRemoved: ev(), onUpdated: ev(), onActivated: ev(), onMoved: ev(), onAttached: ev(), onDetached: ev() },
+  tabs: { query: async () => tabsAll.filter((t) => t.windowId === 1 && !t.url.includes('newtab')), update: rec("tabs.update"), create: rec("tabs.create"), group: async (o) => { window.__calls.push(["tabs.group", o]); return 200; }, ungroup: rec("tabs.ungroup"), remove: async () => {}, onCreated: ev(), onRemoved: ev(), onUpdated: ev(), onActivated: ev(), onMoved: ev(), onAttached: ev(), onDetached: ev() },
   windows: { create: rec("windows.create"), getCurrent: async () => ({ id: 1 }), getAll: async () => wins, getLastFocused: async () => ({ id: 1 }), update: rec("windows.update"), onRemoved: ev(), onFocusChanged: ev() },
   bookmarks: { getTree: async () => tree, search: async (q) => { const needle = typeof q === "string" ? q.toLowerCase() : ""; return flat(tree[0]).filter((n) => typeof q === "string" ? (n.title + n.url).toLowerCase().includes(needle) : n.url === q.url); }, create: async () => ({}), remove: async () => {}, onCreated: ev(), onRemoved: ev(), onChanged: ev(), onMoved: ev() },
   history: { search: async ({ text }) => hist.filter((h) => !text || (h.title + h.url).toLowerCase().includes(text.toLowerCase())), deleteUrl: async () => {}, onVisited: ev(), onVisitRemoved: ev() },
@@ -115,6 +115,10 @@ window.chrome = {
     removeEntry: async ({ url }) => { window.__calls.push(["readingList.remove", url]); const i = readingEntries.findIndex((e) => e.url === url); if (i >= 0) readingEntries.splice(i, 1); },
     updateEntry: async (u) => { window.__calls.push(["readingList.update", u]); const e = readingEntries.find((x) => x.url === u.url); if (e) Object.assign(e, u); },
     onEntryAdded: ev(), onEntryRemoved: ev(), onEntryUpdated: ev(),
+  },
+  tabGroups: {
+    query: async () => [{ id: 100, title: "리서치", color: "blue", collapsed: false, windowId: 1 }],
+    update: rec("tabGroups.update"), onCreated: ev(), onUpdated: ev(), onRemoved: ev(),
   },
   search: { query: rec("search.query") },
   commands: { onCommand: ev() },
@@ -338,6 +342,73 @@ app.whenReady().then(async () => {
         await key('\\');
         log('\\ resets', (await ev(`document.getElementById('v').playbackRate`)) === 1);
         vw.close();
+        await sleep(250);
+      }
+      { // share / QR window
+        const sw = mk(440, 700);
+        await sw.loadURL(`${base}/modules/share/share.html?url=${encodeURIComponent("https://github.com/Jangwoo0827/browser")}&title=${encodeURIComponent("GitHub — Jangwoo0827/browser")}`);
+        await sleep(700);
+        const ev = (code) => sw.webContents.executeJavaScript(code);
+        const log = (name, ok, extra) => console.log(`${ok ? 'PASS' : 'FAIL'}  share: ${name}${extra ? '  ' + JSON.stringify(extra) : ''}`);
+        log('title, host and address are shown', (await ev(`document.getElementById('title').textContent`)).includes('GitHub') && (await ev(`document.getElementById('host').textContent`)) === 'github.com' && (await ev(`document.getElementById('url').value`)) === 'https://github.com/Jangwoo0827/browser');
+        log('the QR code is drawn', (await ev(`document.querySelector('#qr svg path').getAttribute('d').length`)) > 500);
+        await ev(`document.getElementById('copy').click()`);
+        await sleep(300);
+        log('copy confirms', (await ev(`document.getElementById('msg').textContent`)).includes('복사'));
+        await shot(sw, `share-${theme}.png`);
+        sw.close();
+        await sleep(250);
+      }
+      { // dropping a link on the new tab page / on the rail
+        const dw = mk(1100, 700);
+        await dw.loadURL(`${base}/modules/newtab/newtab.html`);
+        await sleep(1000);
+        const ev = (code) => dw.webContents.executeJavaScript(code);
+        const log = (name, ok, extra) => console.log(`${ok ? 'PASS' : 'FAIL'}  drop: ${name}${extra ? '  ' + JSON.stringify(extra) : ''}`);
+        const drop = (target, uri, html) => ev(`(() => { const dt = new DataTransfer(); dt.setData('text/uri-list', ${JSON.stringify(uri)}); ${html ? `dt.setData('text/html', ${JSON.stringify(html)});` : ''} ${target}.dispatchEvent(new DragEvent('dragenter', { dataTransfer: dt, bubbles: true })); ${target}.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true })); })()`);
+        const before = await ev(`document.querySelectorAll('a.tile').length`);
+        await drop('document.body', 'https://example.net/hello', '<a href="https://example.net/hello">예시 링크</a>');
+        await sleep(500);
+        const names = await ev(`[...document.querySelectorAll('a.tile .name')].map((n) => n.textContent)`);
+        log('a dropped link becomes a tile named after the link text', names.length === before + 1 && names.includes('예시 링크'), names);
+        await drop('document.body', 'https://example.net/other');
+        await sleep(400);
+        log('the same site is not added twice', (await ev(`document.querySelectorAll('a.tile').length`)) === before + 1);
+        log('the drop overlay is gone afterwards', !(await ev(`document.body.classList.contains('drop-active')`)));
+        dw.close();
+        await sleep(250);
+
+        const rw3 = mk(900, 560);
+        await rw3.loadURL(`${base}/mock-page`);
+        await rw3.webContents.executeJavaScript(`(async () => { const host = document.createElement('div'); host.style.cssText='all:initial'; const root = host.attachShadow({mode:'open'}); for (const h of ['ui/tokens.css','ui/base.css','modules/rail/rail.css']) { const l=document.createElement('link'); l.rel='stylesheet'; l.href=chrome.runtime.getURL(h); root.append(l);} document.body.append(host); const m = await import(chrome.runtime.getURL('modules/rail/rail.js')); window.__rail = await m.mountRail(root, { side: 'left', open(){}, workspace(){}, settings(){} }); })()`);
+        await sleep(600);
+        await rw3.webContents.executeJavaScript(`(() => { const dt = new DataTransfer(); dt.setData('text/uri-list', 'https://notion.so/team'); const el = window.__rail.element; el.dispatchEvent(new DragEvent('dragover', { dataTransfer: dt, bubbles: true, cancelable: true })); el.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true })); })()`);
+        await sleep(500);
+        const pinned = await rw3.webContents.executeJavaScript(`chrome.storage.local.get('items').then((r) => (r.items || []).map((i) => i.url + '|' + i.name))`);
+        log('a link dropped on the rail is pinned as a site', pinned.some((x) => x.startsWith('https://notion.so/team|Notion')), pinned);
+        rw3.close();
+        await sleep(250);
+      }
+      { // tab groups in the tabs pane
+        const gw = mk(380, 640);
+        await gw.loadURL(`${base}/modules/sidebar/panel.html#pane=%40tabs`);
+        await sleep(900);
+        const ev = (code) => gw.webContents.executeJavaScript(code);
+        const log = (name, ok, extra) => console.log(`${ok ? 'PASS' : 'FAIL'}  tab groups: ${name}${extra ? '  ' + JSON.stringify(extra) : ''}`);
+        log('the group header and its two tabs are shown', (await ev(`document.querySelector('.tabgroup')?.textContent`) || '').includes('리서치') && (await ev(`document.querySelectorAll('.row.grouped').length`)) === 2);
+        await shot(gw, `tabgroups-${theme}.png`);
+        await ev(`document.querySelector('.tabgroup').click()`);
+        await sleep(200);
+        log('clicking the header collapses it (Chrome API)', await ev(`window.__calls.some((c) => c[0] === 'tabGroups.update' && c[2].collapsed === true)`));
+        await ev(`document.querySelector('.pane-bar .ibtn[title^="같은 사이트"]').click()`);
+        await sleep(400);
+        const g = await ev(`window.__calls.find((c) => c[0] === 'tabs.group')`);
+        log('"group by site" groups the two GitHub tabs of this window', g && JSON.stringify(g[1].tabIds) === '[2,9]', g && g[1]);
+        await ev(`document.querySelector('.pane-bar .ibtn[title^="이 창의 탭 그룹"]').click()`);
+        await sleep(300);
+        const u = await ev(`window.__calls.find((c) => c[0] === 'tabs.ungroup')`);
+        log('"ungroup all" releases the grouped tabs', u && JSON.stringify(u[1]) === '[3,4]', u && u[1]);
+        gw.close();
         await sleep(250);
       }
       // rail on a normal page: collapsed, then expanded

@@ -26,7 +26,9 @@ function commandList(inPage) {
     { title: "페이지 저장 (.mhtml)", sub: "오프라인에서도 열려요", icon: "download", run: tool("save-mhtml") },
     { title: "이 페이지 번역", sub: "Google 번역으로 열기 (주소가 Google로 전송돼요)", icon: "globe", run: tool("translate") },
     { title: "PDF로 저장 / 인쇄", sub: "인쇄 창에서 PDF로 저장 선택", icon: "download", run: tool("print") },
-    { title: "읽기 목록에 추가", sub: "나중에 읽기", icon: "book", run: tool("reading-add") }
+    { title: "읽기 목록에 추가", sub: "나중에 읽기", icon: "book", run: tool("reading-add") },
+    { title: "페이지 공유 / QR 코드", sub: "링크 복사, 공유, 휴대폰으로 열기", icon: "external", run: tool("share") },
+    { title: "프로필 관리", sub: "프로필 추가·전환 (Chrome 설정)", icon: "home", run: () => send({ type: "quick:open-internal", url: "chrome://settings/manageProfile" }) }
   );
   if (inPage) { // the side panel can only be opened from a page (it needs the click's user activation)
     for (const [id, title, ico] of [["@claude", "Claude 패널 열기", "sparkles"], ["@bookmarks", "북마크 패널 열기", "bookmark"], ["@history", "기록 패널 열기", "history"], ["@notes", "메모 패널 열기", "edit"], ["@readinglist", "읽기 목록 패널 열기", "book"], ["@tabs", "열린 탭 패널 열기", "tabs"]]) {

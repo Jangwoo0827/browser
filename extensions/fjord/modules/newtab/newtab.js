@@ -546,8 +546,44 @@ function setupCustomize() {
   chrome.storage.onChanged.addListener((changes, area) => { if (area === "local" && (changes.ntpSettings || changes.ntpImage)) loadNtp(); });
 }
 
+// ---- drop a link (from the address bar, a page, a bookmark) anywhere on the page: it becomes a speed dial tile ----
+function linkFrom(dt) {
+  const uri = (dt.getData("text/uri-list") || "").split(/\r?\n/).find((l) => l && !l.startsWith("#"));
+  const url = normalizeUrl(uri || dt.getData("text/plain"));
+  if (!url) return null;
+  let name = "";
+  try { name = new DOMParser().parseFromString(dt.getData("text/html") || "", "text/html").querySelector("a")?.textContent.trim() || ""; } catch {}
+  if (!name) { name = hostOf(url).split(".")[0]; name = name.charAt(0).toUpperCase() + name.slice(1); }
+  return { url, name: name.slice(0, 24) };
+}
+
+function setupDrop() {
+  const carries = (dt) => !dragId && !!dt && [...(dt.types || [])].some((t) => t === "text/uri-list" || t === "text/plain");
+  let depth = 0;
+  document.addEventListener("dragenter", (e) => { if (carries(e.dataTransfer)) { depth++; document.body.classList.add("drop-active"); } });
+  document.addEventListener("dragover", (e) => { if (carries(e.dataTransfer)) e.preventDefault(); });
+  document.addEventListener("dragleave", (e) => { if (carries(e.dataTransfer) && --depth <= 0) { depth = 0; document.body.classList.remove("drop-active"); } });
+  document.addEventListener("drop", async (e) => {
+    depth = 0;
+    document.body.classList.remove("drop-active");
+    if (!carries(e.dataTransfer)) return;
+    const link = linkFrom(e.dataTransfer);
+    if (!link) return;
+    e.preventDefault();
+    const list = tiles();
+    if (!list.some((t) => hostOf(t.url) === hostOf(link.url))) {
+      list.push({ id: newId(), name: link.name, url: link.url });
+      await save(list);
+      render();
+      renderCards();
+      renderOpenTabs();
+    }
+  });
+}
+
 (async () => {
   $("searchIcon").innerHTML = icon("search");
+  setupDrop();
   setupCustomize();
   await loadNtp();
   tick();

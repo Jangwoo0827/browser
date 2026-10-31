@@ -183,3 +183,9 @@ body { display: flex; flex-direction: column; background: var(--fj-color-bg-surf
 .row .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: transparent; }
 .row .dot.on { background: var(--fj-color-accent-primary); }
 .row.read .row-title { font-weight: 400; color: var(--fj-color-text-secondary); }
+
+/* tab groups in the tabs pane */
+.tabgroup { cursor: pointer; outline: none; border-radius: var(--fj-radius-md); }
+.tabgroup:hover, .tabgroup:focus-visible { background: var(--fj-color-bg-surface-hover); }
+.tabgroup .gdot { width: 10px; height: 10px; border-radius: 3px; background: var(--gc); }
+.row.grouped { margin-left: var(--fj-space-4); border-left: 3px solid var(--gc); border-top-left-radius: 2px; border-bottom-left-radius: 2px; }

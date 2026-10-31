@@ -22,7 +22,8 @@
     "contextMenus",
     "pageCapture",
     "downloads",
-    "readingList"
+    "readingList",
+    "tabGroups"
   ],
   "host_permissions": [
     "<all_urls>"

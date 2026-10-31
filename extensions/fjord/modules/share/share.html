@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>공유 · QR 코드</title>
+  <link rel="stylesheet" href="../../ui/tokens.css">
+  <link rel="stylesheet" href="../../ui/base.css">
+  <link rel="stylesheet" href="share.css">
+</head>
+<body>
+  <main>
+    <h1 id="title" class="fj-title-section"></h1>
+    <p id="host" class="fj-caption"></p>
+    <div id="qr" class="qr" role="img" aria-label="이 주소의 QR 코드"></div>
+    <p id="qrNote" class="fj-caption note" hidden></p>
+    <p class="fj-caption note">휴대폰 카메라로 비추면 같은 페이지를 열 수 있어요.</p>
+    <input id="url" class="fj-field" readonly aria-label="주소">
+    <div class="row">
+      <button id="copy" class="fj-btn fj-btn--primary" type="button">링크 복사</button>
+      <button id="share" class="fj-btn" type="button">공유…</button>
+      <button id="save" class="fj-btn" type="button">QR 저장</button>
+    </div>
+    <p id="msg" class="fj-caption msg" role="status"></p>
+  </main>
+  <script type="module" src="share.js"></script>
+</body>
+</html>

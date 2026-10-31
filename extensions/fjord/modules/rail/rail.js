@@ -58,6 +58,19 @@ function section(heading, ...children) {
   return wrap;
 }
 
+// a link dragged from a page / the address bar / a bookmark: { url, name }
+export function droppedLink(dt) {
+  if (!dt) return null;
+  const uri = (dt.getData("text/uri-list") || "").split(/\r?\n/).find((l) => l && !l.startsWith("#"));
+  const url = Store.normalizeUrl(uri || dt.getData("text/plain"));
+  if (!url) return null;
+  let name = "";
+  try { name = new DOMParser().parseFromString(dt.getData("text/html") || "", "text/html").querySelector("a")?.textContent.trim() || ""; } catch {}
+  if (!name) { const host = new URL(url).hostname.replace(/^www\./, ""); name = host.split(".")[0]; name = name.charAt(0).toUpperCase() + name.slice(1); }
+  return { url, name: name.slice(0, 24) };
+}
+const hasLink = (dt) => !!dt && [...(dt.types || [])].some((t) => t === "text/uri-list" || t === "text/plain");
+
 const divider = () => Object.assign(document.createElement("div"), { className: "rail-divider" });
 
 // parent: element to append the rail to. callbacks: { open(id), workspace(id), settings() }. side: "left" | "right".
@@ -103,6 +116,18 @@ export async function mountRail(parent, { open, workspace, settings, side }) {
     rail.addEventListener("mouseenter", () => { clearTimeout(timer); timer = setTimeout(() => rail.classList.add("expanded"), EXPAND_DELAY_MS); });
     rail.addEventListener("mouseleave", () => { clearTimeout(timer); rail.classList.remove("expanded"); });
   }
+
+  rail.addEventListener("dragover", (e) => { if (hasLink(e.dataTransfer)) { e.preventDefault(); rail.classList.add("drop"); } });
+  rail.addEventListener("dragleave", (e) => { if (!rail.contains(e.relatedTarget)) rail.classList.remove("drop"); });
+  rail.addEventListener("drop", async (e) => {
+    rail.classList.remove("drop");
+    const link = droppedLink(e.dataTransfer);
+    if (!link) return;
+    e.preventDefault();
+    const { items: pinned } = await Store.load();
+    const same = (u) => { try { return new URL(u).origin === new URL(link.url).origin; } catch { return false; } };
+    if (!pinned.some((i) => same(i.url))) await Store.saveItems([...pinned, { id: Store.newId(), name: link.name, url: link.url }]); // the rail redraws on the storage change
+  });
 
   parent.append(rail);
   return { element: rail, destroy: () => { clearTimeout(timer); rail.remove(); } };

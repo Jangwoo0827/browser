@@ -89,7 +89,20 @@ async function addToReadingList(tab) {
   }
 }
 
+async function openShare(url, title) {
+  const win = await chrome.windows.getLastFocused({ windowTypes: ["normal"] }).catch(() => null);
+  const width = 420;
+  const height = 640;
+  await chrome.windows.create({
+    url: chrome.runtime.getURL("modules/share/share.html") + `?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title || url)}`,
+    type: "popup", width, height,
+    left: win && win.left != null ? Math.round(win.left + (win.width - width) / 2) : undefined,
+    top: win && win.top != null ? Math.round(win.top + 60) : undefined,
+  });
+}
+
 const ACTIONS = {
+  share: (tab) => openShare(tab.url, tab.title),
   reader: (tab) => ask(tab, { type: "tools:reader" }),
   "shot-visible": shotVisible,
   "shot-region": shotRegion,
@@ -126,9 +139,14 @@ const MENUS = [
   ["fjord-tool-translate", "이 페이지 번역 (Google 번역)", "translate"],
   ["fjord-tool-shot-region", "화면 영역 캡처", "shot-region"],
   ["fjord-tool-reading-add", "읽기 목록에 추가", "reading-add"],
+  ["fjord-tool-share", "이 페이지 공유 / QR 코드", "share"],
 ];
 
+const LINK_MENU = "fjord-tool-link-share";
+
 async function setupMenus() {
+  await chrome.contextMenus.remove(LINK_MENU).catch(() => {});
+  chrome.contextMenus.create({ id: LINK_MENU, title: "링크 QR 코드 / 공유", contexts: ["link"], targetUrlPatterns: ["http://*/*", "https://*/*"] });
   for (const [id, title] of MENUS) {
     await chrome.contextMenus.remove(id).catch(() => {});
     chrome.contextMenus.create({ id, title, contexts: ["page"], documentUrlPatterns: ["http://*/*", "https://*/*"] });
@@ -138,6 +156,7 @@ chrome.runtime.onInstalled.addListener(() => setupMenus());
 chrome.runtime.onStartup.addListener(() => setupMenus());
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === LINK_MENU && info.linkUrl) return void openShare(info.linkUrl, info.selectionText || info.linkUrl);
   const entry = MENUS.find(([id]) => id === info.menuItemId);
   if (entry && tab) run(entry[2], tab);
 });

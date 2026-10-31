@@ -46,3 +46,5 @@
 @media (prefers-color-scheme: dark) { .rail-glyph img { background: #f6f7f9; padding: 2px; } }
 .rail-label { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; opacity: 0; transition: opacity 120ms ease; }
 .rail.expanded .rail-label { opacity: 1; transition-delay: 60ms; }
+
+.rail.drop { box-shadow: inset 0 0 0 2px var(--fj-color-accent-primary); }
