@@ -51,6 +51,12 @@
         "default": "Alt+Q"
       },
       "description": "Switch to the next workspace"
+    },
+    "quick-find": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+K"
+      },
+      "description": "Quick find: tabs, bookmarks, history, commands"
     }
   },
   "declarative_net_request": {
@@ -98,6 +104,17 @@
       ],
       "run_at": "document_idle",
       "all_frames": false
+    },
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "modules/quick/content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
     }
   ],
   "icons": {
@@ -116,7 +133,10 @@
         "modules/rail/rail.js",
         "modules/rail/rail.css",
         "modules/sidebar/store.js",
-        "modules/sidebar/panes.js"
+        "modules/sidebar/panes.js",
+        "modules/quick/ui.js",
+        "modules/quick/quick.css",
+        "_favicon/*"
       ],
       "matches": [
         "http://*/*",

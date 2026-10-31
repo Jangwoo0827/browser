@@ -42,6 +42,9 @@ fs.mkdirSync(LOGS, { recursive: true });
 fs.writeFileSync(PRELOAD, `
 const ORIGIN = location.origin;
 const ev = () => ({ addListener() {}, removeListener() {} });
+const listeners = [];
+window.__calls = [];
+const rec = (name) => async (...a) => { window.__calls.push([name, ...a]); return {}; };
 const now = Date.now();
 const DAY = 86400e3;
 const hash = new URLSearchParams(location.hash.slice(1));
@@ -76,13 +79,24 @@ const wins = [
 ];
 const tabsAll = wins.flatMap((w) => w.tabs);
 window.chrome = {
-  runtime: { id: "preview", getURL: (p) => ORIGIN + (p.startsWith("/") ? p : "/" + p), openOptionsPage() {}, sendMessage: async (m) => m && m.type === "ws:state" ? { activeId: "personal", workspaces: store.workspaces.map((w, i) => ({ ...w, count: [5, 3, 0][i] })) } : {}, onMessage: ev() },
+  runtime: {
+    id: "preview", getURL: (p) => ORIGIN + (p.startsWith("/") ? p : "/" + p), openOptionsPage() {},
+    onMessage: { addListener: (f) => listeners.push(f), removeListener() {} },
+    sendMessage: (m) => new Promise((resolve) => {
+      if (m && m.type === "ws:state") return resolve({ activeId: "personal", workspaces: store.workspaces.map((w, i) => ({ ...w, count: [5, 3, 0][i] })) });
+      window.__calls.push(["message", m]);
+      let async = false;
+      for (const l of listeners) if (l(m, {}, resolve) === true) async = true;
+      if (!async) resolve({});
+    }),
+  },
   storage: { local: area(store), session: area(sess), onChanged: ev() },
-  tabs: { query: async () => tabsAll.filter((t) => t.windowId === 1 && !t.url.includes('newtab')), update: async () => ({}), create: async () => ({}), remove: async () => {}, onCreated: ev(), onRemoved: ev(), onUpdated: ev(), onActivated: ev(), onMoved: ev(), onAttached: ev(), onDetached: ev() },
-  windows: { create: async () => ({}), getCurrent: async () => ({ id: 1 }), getAll: async () => wins, getLastFocused: async () => ({ id: 1 }), update: async () => ({}), onRemoved: ev(), onFocusChanged: ev() },
+  tabs: { query: async () => tabsAll.filter((t) => t.windowId === 1 && !t.url.includes('newtab')), update: rec("tabs.update"), create: rec("tabs.create"), remove: async () => {}, onCreated: ev(), onRemoved: ev(), onUpdated: ev(), onActivated: ev(), onMoved: ev(), onAttached: ev(), onDetached: ev() },
+  windows: { create: rec("windows.create"), getCurrent: async () => ({ id: 1 }), getAll: async () => wins, getLastFocused: async () => ({ id: 1 }), update: rec("windows.update"), onRemoved: ev(), onFocusChanged: ev() },
   bookmarks: { getTree: async () => tree, search: async (q) => { const needle = typeof q === "string" ? q.toLowerCase() : ""; return flat(tree[0]).filter((n) => typeof q === "string" ? (n.title + n.url).toLowerCase().includes(needle) : n.url === q.url); }, create: async () => ({}), remove: async () => {}, onCreated: ev(), onRemoved: ev(), onChanged: ev(), onMoved: ev() },
   history: { search: async ({ text }) => hist.filter((h) => !text || (h.title + h.url).toLowerCase().includes(text.toLowerCase())), deleteUrl: async () => {}, onVisited: ev(), onVisitRemoved: ev() },
-  search: { query() {} },
+  search: { query: rec("search.query") },
+  commands: { onCommand: ev() },
   webNavigation: { onCommitted: ev(), onHistoryStateUpdated: ev() },
   sidePanel: { open: async () => {} },
   scripting: { executeScript: async () => [{ result: { selection: "", text: "예시 페이지 본문" } }] },
@@ -149,6 +163,53 @@ app.whenReady().then(async () => {
         await sleep(900);
         await shot(ow, `options-${theme}.png`);
         ow.close();
+        await sleep(250);
+      }
+      { // quick find: the real UI talking to the real background module (mocked chrome underneath)
+        const qw = mk(680, 500);
+        await qw.loadURL(`${base}/modules/quick/quick.html#keep`);
+        await qw.webContents.executeJavaScript(`window.close = () => { window.__closed = true; }; import(chrome.runtime.getURL('modules/quick/background.js')).then(() => 0)`);
+        await sleep(700);
+        const text = () => qw.webContents.executeJavaScript(`[...document.querySelectorAll('.qk-item')].map((li) => li.querySelector('.qk-tag').textContent + ':' + li.querySelector('.qk-title').textContent)`);
+        const type = async (v) => { await qw.webContents.executeJavaScript(`(() => { const i = document.querySelector('.qk-input'); i.value = ${JSON.stringify(v)}; i.dispatchEvent(new Event('input')); })()`); await sleep(500); };
+        const key = (k, extra = "") => qw.webContents.executeJavaScript(`document.querySelector('.qk-input').dispatchEvent(new KeyboardEvent('keydown', { key: '${k}', bubbles: true${extra} }))`);
+        const calls = () => qw.webContents.executeJavaScript(`window.__calls.filter((c) => c[0] !== 'message' || c[1].type !== 'quick:query')`);
+        const check = (name, ok, extra) => console.log(`${ok ? 'PASS' : 'FAIL'}  quick: ${name}${extra ? '  ' + JSON.stringify(extra) : ''}`);
+
+        await type('');
+        let items = await text();
+        check('empty box lists open tabs, workspaces and commands', items.some((t) => t.startsWith('탭:')) && items.some((t) => t.startsWith('워크스페이스:')) && items.some((t) => t.startsWith('명령:')), items);
+        await shot(qw, `quick-empty-${theme}.png`);
+
+        await type('youtube');
+        items = await text();
+        check('search puts the open tab first, then the bookmark, and the web search last', items[0].startsWith('탭:YouTube') && items.some((t) => t.startsWith('북마크:YouTube')) && items[items.length - 1] === '검색:"youtube" 검색', items);
+        await shot(qw, `quick-search-${theme}.png`);
+
+        await key('Enter');
+        await sleep(300);
+        let c = await calls();
+        check('Enter on a tab switches to it', c.some((x) => x[0] === 'tabs.update' && x[1] === 4) && c.some((x) => x[0] === 'windows.update'), c.map((x) => x[0]));
+
+        await qw.webContents.executeJavaScript(`window.__calls.length = 0`);
+        await qw.loadURL(`${base}/modules/quick/quick.html#keep`);
+        await qw.webContents.executeJavaScript(`window.close = () => { window.__closed = true; }; import(chrome.runtime.getURL('modules/quick/background.js')).then(() => 0)`);
+        await sleep(500);
+        await type('example.com/path');
+        items = await text();
+        check('an address becomes an "open" row on top', items[0] && items[0].startsWith('열기:https://example.com/path'), items[0]);
+        await key('Enter', ', ctrlKey: true');
+        await sleep(300);
+        c = await calls();
+        check('Ctrl+Enter opens it in a new tab', c.some((x) => x[0] === 'tabs.create' && x[1].url === 'https://example.com/path'), c.map((x) => x[0]));
+
+        await qw.loadURL(`${base}/modules/quick/quick.html#keep`);
+        await qw.webContents.executeJavaScript(`window.close = () => { window.__closed = true; }; import(chrome.runtime.getURL('modules/quick/background.js')).then(() => 0)`);
+        await sleep(500);
+        await type('업무');
+        items = await text();
+        check('workspaces are searchable', items.some((t) => t === '워크스페이스:업무'), items);
+        qw.close();
         await sleep(250);
       }
       // rail on a normal page: collapsed, then expanded

@@ -1,0 +1,28 @@
+/* Quick find box. Used in a shadow root on pages and in the popup window; needs ui/tokens.css + ui/base.css. */
+:host { all: initial; }
+.qk-backdrop { position: fixed; inset: 0; display: flex; justify-content: center; align-items: flex-start; padding-top: 12vh; background: rgba(8, 9, 20, .42); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); font: 400 14px/22px var(--fj-font); color: var(--fj-color-text-primary); }
+.qk-box { width: min(640px, 92vw); max-height: 70vh; display: flex; flex-direction: column; overflow: hidden; border-radius: 18px; background: var(--fj-color-bg-surface); border: 1px solid var(--fj-color-border-subtle); box-shadow: 0 24px 60px rgba(0, 0, 0, .45); }
+.qk-head { display: flex; align-items: center; gap: var(--fj-space-4); padding: 0 var(--fj-space-6); height: 58px; border-bottom: 1px solid var(--fj-color-border-subtle); }
+.qk-ico { display: grid; color: var(--fj-color-text-muted); }
+.qk-ico .fj-icon { width: 20px; height: 20px; }
+.qk-input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; color: var(--fj-color-text-primary); font: 400 16px/24px var(--fj-font); }
+.qk-input::placeholder { color: var(--fj-color-text-muted); }
+.qk-list { flex: 1; min-height: 0; margin: 0; padding: var(--fj-space-3); list-style: none; overflow-y: auto; scrollbar-width: thin; }
+.qk-item { display: flex; align-items: center; gap: var(--fj-space-5); min-height: 46px; padding: 4px var(--fj-space-5); border-radius: 12px; cursor: pointer; }
+.qk-item.sel { background: var(--fj-color-bg-surface-hover); }
+.qk-fav { flex: none; display: grid; place-items: center; width: 24px; height: 24px; color: var(--fj-color-text-secondary); }
+.qk-fav img { width: 18px; height: 18px; border-radius: 4px; object-fit: contain; }
+.qk-fav .fj-icon { width: 18px; height: 18px; }
+.qk-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.qk-title { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 500 14px/20px var(--fj-font); }
+.qk-sub { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 400 12px/16px var(--fj-font); color: var(--fj-color-text-muted); }
+.qk-tag { flex: none; padding: 0 8px; border-radius: 999px; background: var(--fj-color-bg-canvas); color: var(--fj-color-text-muted); font: 500 11px/18px var(--fj-font); }
+.qk-item.sel .qk-tag { background: var(--fj-color-accent-soft); color: var(--fj-color-accent-primary); }
+@media (prefers-color-scheme: dark) { .qk-item.sel .qk-tag { background: rgba(129, 140, 248, .2); } }
+.qk-foot { display: flex; gap: var(--fj-space-6); padding: var(--fj-space-4) var(--fj-space-6); border-top: 1px solid var(--fj-color-border-subtle); font: 400 11.5px/16px var(--fj-font); color: var(--fj-color-text-muted); }
+.qk-foot kbd { margin-right: 3px; padding: 0 5px; border-radius: 4px; border: 1px solid var(--fj-color-border-strong); font: 500 11px/16px var(--fj-font); }
+
+/* popup window: the box fills it */
+body.popup { overflow: hidden; background: var(--fj-color-bg-surface); }
+body.popup .qk-backdrop { padding: 0; background: var(--fj-color-bg-surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
+body.popup .qk-box { width: 100%; height: 100vh; max-height: none; border: 0; border-radius: 0; box-shadow: none; }
