@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
   "name": "Fjord Dark Theme",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Dark Nordic colours with an indigo accent for the browser frame, tab strip, toolbar and address bar (matches the Fjord design tokens).",
   "theme": {
     "images": {
-      "theme_frame": "frame.png"
+      "theme_frame": "frame.png",
+      "theme_toolbar": "toolbar.png"
     },
     "colors": {
       "frame": [
@@ -34,9 +35,9 @@
         42
       ],
       "tab_text": [
-        246,
-        247,
-        249
+        214,
+        219,
+        255
       ],
       "tab_background_text": [
         154,
