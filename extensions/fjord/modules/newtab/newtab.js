@@ -302,6 +302,49 @@ document.querySelectorAll(".more").forEach((b) => {
   };
 });
 
+// ---- open tabs of this window, shaped like tab-strip tabs; "+" copies one into the speed dial ----
+async function renderOpenTabs() {
+  let tabs = [];
+  try { tabs = (await chrome.tabs.query({ currentWindow: true })).filter((t) => /^https?:/.test(t.url || "")); } catch {}
+  const inDial = (t) => tiles().some((x) => x.url === t.url || hostOf(x.url) === hostOf(t.url));
+  $("openTabs").replaceChildren(...tabs.map((t) => {
+    const el = document.createElement("div");
+    el.className = "otab" + (t.active ? " current" : "");
+    el.tabIndex = 0;
+    el.title = `${t.title || t.url}
+${t.url}`;
+    const go = () => chrome.tabs.update(t.id, { active: true });
+    el.onclick = go;
+    el.onkeydown = (e) => e.key === "Enter" && go();
+    const img = document.createElement("img");
+    img.alt = "";
+    img.width = img.height = 16;
+    img.src = faviconUrl(t.url, 32);
+    img.onerror = () => img.replaceWith(glyph(t.title || hostOf(t.url), t.url));
+    const title = document.createElement("span");
+    title.textContent = t.title || hostOf(t.url);
+    el.append(img, title);
+    if (!inDial(t)) {
+      const tools = document.createElement("span");
+      tools.className = "tools";
+      tools.append(toolButton("plus", "스피드 다이얼에 추가", async () => {
+        const list = tiles();
+        list.push({ id: newId(), name: (t.title || hostOf(t.url)).split(/ [-|·–—] /)[0].slice(0, 24), url: t.url });
+        await save(list);
+        render();
+        renderOpenTabs();
+      }));
+      el.append(tools);
+    }
+    return el;
+  }));
+  $("openTabsWrap").hidden = !tabs.length;
+}
+
+let openTabsTimer = null;
+const refreshOpenTabs = () => { clearTimeout(openTabsTimer); openTabsTimer = setTimeout(renderOpenTabs, 150); };
+for (const ev of [chrome.tabs.onCreated, chrome.tabs.onRemoved, chrome.tabs.onUpdated, chrome.tabs.onActivated]) ev.addListener(refreshOpenTabs);
+
 // "/" jumps to the search box, like most start pages
 document.addEventListener("keydown", (e) => {
   if (e.key === "/" && document.activeElement !== $("q") && !document.querySelector("dialog[open]")) { e.preventDefault(); $("q").focus(); }
@@ -338,6 +381,7 @@ async function showRail() {
   await load();
   render();
   renderCards();
+  renderOpenTabs();
   $("q").focus();
   showRail();
 })();

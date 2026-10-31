@@ -226,3 +226,8 @@
 - 권한 추가: `bookmarks`, `history`, `favicon`(Chrome 파비콘 캐시 사용). 아이콘 5종 추가(sparkles/tabs/bookmark/more/chevronRight).
 - **화면 확인**: `scripts/preview-panel.cjs`(Electron 숨김 창 + 모의 `chrome` API)로 다크/라이트 스크린샷을 `logs/panel-*.png`, `logs/rail-*.png`, `logs/workspaces-page-*.png`에 생성. 실제 Fjord 안에서 `chrome.*` 실제 동작(특히 북마크/기록/탭 API, `?q=` 프리필, 파비콘)은 재시작 후 사용자가 확인해야 함. 이 확인 방식은 실제 브라우저 UI(툴바/탭 줄)는 못 그림.
 - 한계: 사이드 패널 위치(좌/우)는 Chrome 설정이 정함(확장이 못 바꿈). 리서치: 웹 검색 결과가 얇아 Edge/Arc/Vivaldi/Opera 사이드바 패턴은 기존 지식 + 출처 일부로 정리.
+
+## 둥근 아이콘 · 새 탭 화면 개편 · 설치 파일 (2026-10-31)
+- **아이콘**: 둥근 모양(원형 그라데이션 + 옅은 테두리/하이라이트, 안에 레일+페이지 기호). `scripts/make-icons.py`로 확장 아이콘/`assets/icon.*` 재생성. 작업 표시줄 exe 아이콘은 다음 콜드 스타트에 `brand-exe`가 다시 입힘.
+- **새 탭**(`modules/newtab`): 시간대별 인사 + 큰 시계 + 날짜, 유리(glass) 검색창(`/`로 포커스), 워크스페이스 분할 스위치, 둥근 사각 타일 스피드 다이얼(Chrome 파비콘 캐시 사용), **열린 탭 줄**(탭 줄 모양의 알약, 클릭하면 이동, +로 스피드 다이얼에 추가), 최근 방문/북마크 카드("더 보기"는 사이드 패널의 해당 패널 열기). 다크에서는 피오르드 야경 배경. 화면은 `scripts/preview-panel.cjs`로 다크/라이트 확인. Electron 앱의 새 탭은 그대로(이번엔 Chromium 쪽만).
+- **설치 파일**: `scripts/build-installer.ps1` → `dist/Fjord-Setup.exe`(IExpress). 설치/제거 스크립트는 `installer/`. 테스트: 파일 풀기·레지스트리 등록·제거 정보까지 임시 폴더에서 확인(바로가기/Chromium 다운로드/실제 실행/제거는 직접 해 보지 않음). 자세한 내용 `docs/installer.md`.

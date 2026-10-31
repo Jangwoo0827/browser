@@ -6,3 +6,4 @@ out/
 *.zip
 extensions/fjord/sw.js
 app/node_modules/
+dist/
