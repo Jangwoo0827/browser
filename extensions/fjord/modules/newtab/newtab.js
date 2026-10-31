@@ -386,8 +386,170 @@ async function showRail() {
   });
 }
 
+// ---- customize: background picture (preset, colour or an uploaded image), dimming, and what to show ----
+const PRESETS = [
+  { id: "auto", label: "기본", css: null },
+  { id: "fjord", label: "피오르드", css: 'url("../../ui/bg-fjord.jpg")', thumb: 'url("../../ui/bg-fjord.jpg")' },
+  { id: "aurora", label: "오로라", css: "linear-gradient(160deg, #0b1026 0%, #2a1b5e 55%, #0f766e 100%)" },
+  { id: "ocean", label: "밤바다", css: "radial-gradient(120% 90% at 20% 100%, #0e7490 0%, #0c1a33 55%, #070b18 100%)" },
+  { id: "forest", label: "숲", css: "linear-gradient(170deg, #07140f 0%, #0f3d2e 60%, #1f6f4a 100%)" },
+  { id: "sunset", label: "노을", css: "linear-gradient(165deg, #1b1033 0%, #6b2d5c 50%, #e0754a 100%)" },
+  { id: "graphite", label: "그래파이트", css: "linear-gradient(180deg, #16181d 0%, #20232a 100%)" },
+];
+const NTP_DEFAULTS = { bg: "auto", dim: 0, clock: true, cards: true, tabs: true };
+let ntp = { ...NTP_DEFAULTS };
+let ntpImage = null; // data URL of the uploaded picture
+
+function applyNtp() {
+  const b = document.body;
+  const preset = PRESETS.find((p) => p.id === ntp.bg);
+  let bg = null;
+  if (ntp.bg === "custom" && ntpImage) bg = `url("${ntpImage}")`;
+  else if (preset && preset.css) bg = preset.css;
+  if (ntp.bg === "auto" || (!bg && ntp.bg !== "custom")) b.removeAttribute("data-bg");
+  else b.dataset.bg = ntp.bg;
+  if (bg) b.style.setProperty("--ntp-bg", bg);
+  else b.style.removeProperty("--ntp-bg");
+  b.style.setProperty("--ntp-dim", String((ntp.dim || 0) / 100));
+  b.classList.toggle("on-image", !!bg);
+  b.classList.toggle("hide-clock", !ntp.clock);
+  b.classList.toggle("hide-cards", !ntp.cards);
+  b.classList.toggle("hide-tabs", !ntp.tabs);
+}
+
+async function loadNtp() {
+  const data = await chrome.storage.local.get(["ntpSettings", "ntpImage"]);
+  ntp = { ...NTP_DEFAULTS, ...(data.ntpSettings || {}) };
+  ntpImage = data.ntpImage || null;
+  applyNtp();
+}
+
+const saveNtp = () => chrome.storage.local.set({ ntpSettings: ntp });
+
+// shrink an uploaded picture so it fits comfortably in extension storage
+function shrinkImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, 1920 / img.naturalWidth);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.naturalWidth * scale);
+      canvas.height = Math.round(img.naturalHeight * scale);
+      canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/jpeg", 0.86));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("이미지를 읽을 수 없어요.")); };
+    img.src = url;
+  });
+}
+
+function renderCustomize() {
+  const panel = $("custPanel");
+  const swatch = (p) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "swatch" + (p.id === "auto" ? " plain" : "");
+    b.title = p.label;
+    b.setAttribute("role", "radio");
+    b.setAttribute("aria-checked", String(ntp.bg === p.id));
+    b.setAttribute("aria-label", p.label);
+    if (p.css) b.style.backgroundImage = p.thumb || p.css;
+    if (p.id === "auto") b.textContent = "기본";
+    b.onclick = async () => { ntp.bg = p.id; await saveNtp(); applyNtp(); renderCustomize(); };
+    return b;
+  };
+
+  const upload = document.createElement("button");
+  upload.type = "button";
+  upload.className = "swatch";
+  upload.title = "내 이미지";
+  upload.setAttribute("role", "radio");
+  upload.setAttribute("aria-checked", String(ntp.bg === "custom"));
+  upload.setAttribute("aria-label", "내 이미지");
+  if (ntpImage) upload.style.backgroundImage = `url("${ntpImage}")`;
+  else upload.innerHTML = icon("plus");
+  const file = document.createElement("input");
+  file.type = "file";
+  file.accept = "image/*";
+  file.hidden = true;
+  file.onchange = async () => {
+    if (!file.files[0]) return;
+    try {
+      ntpImage = await shrinkImage(file.files[0]);
+      ntp.bg = "custom";
+      await chrome.storage.local.set({ ntpImage, ntpSettings: ntp });
+      applyNtp();
+      renderCustomize();
+    } catch (e) {
+      $("custNote").textContent = e.message;
+    }
+  };
+  upload.onclick = () => (ntpImage && ntp.bg !== "custom" ? (ntp.bg = "custom", saveNtp(), applyNtp(), renderCustomize()) : file.click());
+
+  const toggle = (key, label) => {
+    const l = document.createElement("label");
+    l.className = "cust-row";
+    l.innerHTML = `<span class="grow"></span><span class="fj-toggle"><input type="checkbox"><span class="fj-toggle__track"></span></span>`;
+    l.querySelector(".grow").textContent = label;
+    const input = l.querySelector("input");
+    input.checked = !!ntp[key];
+    input.onchange = async () => { ntp[key] = input.checked; await saveNtp(); applyNtp(); };
+    return l;
+  };
+
+  const dim = document.createElement("input");
+  dim.type = "range";
+  dim.min = "0";
+  dim.max = "70";
+  dim.value = String(ntp.dim || 0);
+  dim.setAttribute("aria-label", "배경 어둡게");
+  dim.oninput = () => { ntp.dim = Number(dim.value); applyNtp(); };
+  dim.onchange = () => saveNtp();
+
+  const swatches = document.createElement("div");
+  swatches.className = "swatches";
+  swatches.setAttribute("role", "radiogroup");
+  swatches.append(...PRESETS.map(swatch), upload, file);
+
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "fj-btn fj-btn--ghost";
+  remove.textContent = "내 이미지 지우기";
+  remove.hidden = !ntpImage;
+  remove.onclick = async () => { ntpImage = null; if (ntp.bg === "custom") ntp.bg = "auto"; await chrome.storage.local.remove("ntpImage"); await saveNtp(); applyNtp(); renderCustomize(); };
+
+  const note = document.createElement("p");
+  note.id = "custNote";
+  note.className = "cust-note";
+
+  const title = document.createElement("h3");
+  title.textContent = "새 탭 맞춤설정";
+  const h4 = (t) => Object.assign(document.createElement("h4"), { textContent: t });
+  panel.replaceChildren(title, h4("배경"), swatches, h4("배경 어둡게 (글자가 안 보일 때)"), dim, h4("보이기"),
+    toggle("clock", "인사와 시계"), toggle("tabs", "열린 탭 줄"), toggle("cards", "최근 방문 · 북마크 카드"), remove, note);
+}
+
+function setupCustomize() {
+  $("custBtn").innerHTML = `${icon("edit")}맞춤설정`;
+  const close = () => { $("custPanel").hidden = true; $("custBtn").setAttribute("aria-expanded", "false"); };
+  $("custBtn").onclick = (e) => {
+    e.stopPropagation();
+    const open = $("custPanel").hidden;
+    if (open) renderCustomize();
+    $("custPanel").hidden = !open;
+    $("custBtn").setAttribute("aria-expanded", String(open));
+  };
+  document.addEventListener("click", (e) => { if (!$("custPanel").hidden && !$("custPanel").contains(e.target)) close(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("custPanel").hidden) close(); });
+  chrome.storage.onChanged.addListener((changes, area) => { if (area === "local" && (changes.ntpSettings || changes.ntpImage)) loadNtp(); });
+}
+
 (async () => {
   $("searchIcon").innerHTML = icon("search");
+  setupCustomize();
+  await loadNtp();
   tick();
   setInterval(tick, 15000);
   await load();

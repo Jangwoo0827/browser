@@ -1,9 +1,22 @@
 /* New tab page: greeting + clock, a glass search bar, workspace switch, speed dial tiles, and two glass cards.
    The scene behind it is the Fjord night image (dark mode only; the light theme keeps a plain canvas). */
 body { min-height: 100vh; display: flex; flex-direction: column; }
-@media (prefers-color-scheme: dark) {
-  body { background: var(--fj-color-bg-canvas) url("../../ui/bg-fjord.jpg") center bottom / cover no-repeat fixed; }
+
+/* the picture behind the page. "auto" = the fjord night in dark mode, nothing in light mode; the customize panel sets --ntp-bg */
+body::before { content: ""; position: fixed; inset: 0; z-index: -2; background: var(--ntp-bg, none) center bottom / cover no-repeat; }
+@media (prefers-color-scheme: dark) { body:not([data-bg]) { --ntp-bg: url("../../ui/bg-fjord.jpg"); } }
+body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; background: rgba(8, 9, 20, var(--ntp-dim, 0)); }
+
+/* on a picture the light theme would be unreadable: use the dark colours there */
+body.on-image {
+  --fj-color-text-primary: #f6f7f9; --fj-color-text-secondary: #d5d9e2; --fj-color-text-muted: #aeb4c0;
+  --fj-color-accent-primary: #818cf8; --fj-color-accent-soft: #3a3ca8; --fj-color-border-strong: #4a5060; --fj-color-text-on-accent: #0f1115;
+  --glass: rgba(26, 28, 36, .52); --glass-hover: rgba(46, 49, 62, .66); --glass-line: rgba(255, 255, 255, .09);
+  color: var(--fj-color-text-primary);
 }
+body.hide-clock #hero { display: none; }
+body.hide-cards #cards { display: none !important; }
+body.hide-tabs #openTabsWrap { display: none !important; }
 
 /* glass surfaces */
 :root {
@@ -130,6 +143,29 @@ main {
 .card-text { min-width: 0; display: flex; flex-direction: column; }
 .card-title { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 500 13px/18px var(--fj-font); color: var(--fj-color-text-primary); }
 .card-sub { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 400 11.5px/15px var(--fj-font); color: var(--fj-color-text-muted); }
+
+/* customize button + panel */
+.cust-btn { position: fixed; right: var(--fj-space-7); bottom: var(--fj-space-7); z-index: 5; display: inline-flex; align-items: center; gap: var(--fj-space-3); height: 36px; padding: 0 var(--fj-space-6) 0 var(--fj-space-5); border: 1px solid var(--glass-line); border-radius: var(--fj-radius-full); background: var(--glass); color: var(--fj-color-text-secondary); font: 500 13px/18px var(--fj-font); cursor: pointer; -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); transition: background var(--fj-motion), color var(--fj-motion); }
+.cust-btn:hover { background: var(--glass-hover); color: var(--fj-color-text-primary); }
+.cust-btn .fj-icon { width: 15px; height: 15px; }
+.cust-panel {
+  /* the panel keeps the dark palette in every theme, so it reads the same over any background */
+  --fj-color-text-primary: #f6f7f9; --fj-color-text-secondary: #d5d9e2; --fj-color-text-muted: #aeb4c0; --fj-color-bg-surface: #20232a; --fj-color-bg-canvas: #16181d;
+  --fj-color-bg-surface-hover: #2d3037; --fj-color-border-subtle: #2d3037; --fj-color-border-strong: #4a5060; --fj-color-accent-primary: #818cf8; --fj-color-accent-soft: #3a3ca8;
+  color: var(--fj-color-text-primary);
+  position: fixed; right: var(--fj-space-7); bottom: 68px; z-index: 6; width: 340px; max-height: calc(100vh - 96px); overflow-y: auto; padding: var(--fj-space-6); border-radius: var(--fj-radius-xl); background: var(--fj-color-bg-surface); border: 1px solid var(--fj-color-border-subtle); box-shadow: var(--fj-shadow-raised); }
+.cust-panel h3 { margin: 0 0 var(--fj-space-4); font: 600 14px/20px var(--fj-font); }
+.cust-panel h4 { margin: var(--fj-space-6) 0 var(--fj-space-3); font: 600 11.5px/16px var(--fj-font); letter-spacing: .3px; color: var(--fj-color-text-muted); }
+.swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--fj-space-4); }
+.swatch { position: relative; aspect-ratio: 1; padding: 0; border: 2px solid transparent; border-radius: var(--fj-radius-lg); background-size: cover; background-position: center; cursor: pointer; color: var(--fj-color-text-muted); font: 500 11px/14px var(--fj-font); display: grid; place-items: center; outline-offset: 2px; transition: border-color var(--fj-motion), transform var(--fj-motion); box-shadow: inset 0 0 0 1px var(--fj-color-border-subtle); }
+.swatch:hover { transform: translateY(-1px); }
+.swatch[aria-checked="true"] { border-color: var(--fj-color-accent-primary); }
+.swatch .fj-icon { width: 20px; height: 20px; }
+.swatch.plain { background: var(--fj-color-bg-canvas); }
+.cust-row { display: flex; align-items: center; gap: var(--fj-space-5); min-height: 38px; }
+.cust-row .grow { flex: 1; font: 500 13px/18px var(--fj-font); }
+.cust-panel input[type="range"] { width: 100%; accent-color: var(--fj-color-accent-primary); }
+.cust-note { margin: var(--fj-space-3) 0 0; font: 400 12px/16px var(--fj-font); color: var(--fj-color-state-warning); }
 
 /* dialog */
 dialog { width: min(380px, 92vw); padding: var(--fj-space-7); color: var(--fj-color-text-primary); background: var(--fj-color-bg-surface); border: 1px solid var(--fj-color-border-subtle); border-radius: var(--fj-radius-xl); box-shadow: var(--fj-shadow-raised); }

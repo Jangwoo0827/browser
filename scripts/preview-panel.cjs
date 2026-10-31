@@ -134,6 +134,12 @@ app.whenReady().then(async () => {
         await nw.loadURL(`${base}/modules/newtab/newtab.html`);
         await sleep(1200);
         await shot(nw, `newtab-${theme}.png`);
+        await nw.webContents.executeJavaScript(`document.getElementById('custBtn').click()`);
+        await sleep(300);
+        await shot(nw, `newtab-customize-${theme}.png`);
+        await nw.webContents.executeJavaScript(`document.querySelector('.swatch[aria-label="노을"]').click()`);
+        await sleep(400);
+        await shot(nw, `newtab-sunset-${theme}.png`);
         nw.close();
         await sleep(250);
       }
