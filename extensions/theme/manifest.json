@@ -1,18 +1,22 @@
 {
   "manifest_version": 3,
   "name": "Fjord Dark Theme",
-  "version": "0.1.0",
-  "description": "Dark Nordic colours for the browser frame, tab strip, toolbar and address bar (matches the Fjord design tokens).",
+  "version": "0.2.0",
+  "description": "Dark Nordic colours with an indigo accent for the browser frame, tab strip, toolbar and address bar (matches the Fjord design tokens).",
   "theme": {
+    "images": {
+      "theme_frame": "frame.png"
+    },
     "colors": {
       "frame": [15, 17, 21],
       "frame_inactive": [22, 24, 29],
-      "frame_incognito": [32, 35, 42],
+      "frame_incognito": [28, 20, 48],
       "frame_incognito_inactive": [22, 24, 29],
       "toolbar": [32, 35, 42],
       "tab_text": [246, 247, 249],
       "tab_background_text": [154, 161, 173],
       "bookmark_text": [199, 204, 214],
+      "toolbar_button_icon": [165, 172, 255],
       "ntp_background": [22, 24, 29],
       "ntp_text": [246, 247, 249],
       "ntp_link": [129, 140, 248],
