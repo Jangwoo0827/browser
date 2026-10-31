@@ -1,4 +1,5 @@
 body { min-height: 100vh; }
+@media (prefers-color-scheme: dark) { body { background: var(--fj-color-bg-canvas) url("fjord://shared/bg-fjord.jpg") center bottom / cover no-repeat fixed; } }
 main { max-width: 920px; margin: 0 auto; padding: 12vh var(--fj-space-8) var(--fj-space-10); display: flex; flex-direction: column; align-items: center; gap: var(--fj-space-9); }
 #clock { color: var(--fj-color-text-secondary); }
 #search { width: min(560px, 100%); }

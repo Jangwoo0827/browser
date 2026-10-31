@@ -1,4 +1,6 @@
 body { min-height: 100vh; display: flex; flex-direction: column; }
+/* the fjord scene behind the speed dial (dark mode only: the light theme keeps its plain canvas) */
+@media (prefers-color-scheme: dark) { body { background: var(--fj-color-bg-canvas) url("../../ui/bg-fjord.jpg") center bottom / cover no-repeat fixed; } }
 
 #top { display: flex; align-items: center; gap: var(--fj-space-4); padding: var(--fj-space-6) var(--fj-space-9); }
 .logo { border-radius: var(--fj-radius-sm); }
