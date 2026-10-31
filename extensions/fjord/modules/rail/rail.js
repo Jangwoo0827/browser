@@ -6,7 +6,7 @@ import { glyphColor } from "../../ui/glyph.js";
 import { Store } from "../sidebar/store.js";
 import { PANES, TOOLS, isClaudeSite } from "../sidebar/panes.js";
 
-export const DEFAULTS = { enabled: true, side: "left" };
+export const DEFAULTS = { enabled: true, side: "left", expand: true };
 const FALLBACK_WORKSPACES = [{ id: "personal", name: "개인", icon: "home" }, { id: "work", name: "업무", icon: "briefcase" }];
 const EXPAND_DELAY_MS = 260;
 
@@ -63,6 +63,7 @@ const divider = () => Object.assign(document.createElement("div"), { className: 
 // parent: element to append the rail to. callbacks: { open(id), workspace(id), settings() }. side: "left" | "right".
 export async function mountRail(parent, { open, workspace, settings, side }) {
   const { items } = await Store.load();
+  const { expand } = await loadSettings();
   const data = await chrome.storage.local.get(["workspaces", "wsActive"]);
   const workspaces = Array.isArray(data.workspaces) && data.workspaces.length ? data.workspaces : FALLBACK_WORKSPACES;
   const activeId = workspaces.some((w) => w.id === data.wsActive) ? data.wsActive : workspaces[0].id;
@@ -98,8 +99,10 @@ export async function mountRail(parent, { open, workspace, settings, side }) {
 
   // expand on hover (after a short delay so a passing cursor does not trigger it), collapse as soon as it leaves
   let timer = null;
-  rail.addEventListener("mouseenter", () => { clearTimeout(timer); timer = setTimeout(() => rail.classList.add("expanded"), EXPAND_DELAY_MS); });
-  rail.addEventListener("mouseleave", () => { clearTimeout(timer); rail.classList.remove("expanded"); });
+  if (expand !== false) {
+    rail.addEventListener("mouseenter", () => { clearTimeout(timer); timer = setTimeout(() => rail.classList.add("expanded"), EXPAND_DELAY_MS); });
+    rail.addEventListener("mouseleave", () => { clearTimeout(timer); rail.classList.remove("expanded"); });
+  }
 
   parent.append(rail);
   return { element: rail, destroy: () => { clearTimeout(timer); rail.remove(); } };

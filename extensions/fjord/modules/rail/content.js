@@ -11,6 +11,7 @@
   let host = null;
   let handle = null;
   let shownSide = null;
+  let shownExpand = null;
 
   function clearPush() {
     for (const side of ["left", "right"]) document.documentElement.style.removeProperty("margin-" + side);
@@ -19,7 +20,7 @@
   function unmount() {
     handle?.destroy();
     host?.remove();
-    host = handle = shownSide = null;
+    host = handle = shownSide = shownExpand = null;
     clearPush();
   }
 
@@ -43,6 +44,7 @@
     });
     document.documentElement.append(host);
     shownSide = settings.side;
+    shownExpand = settings.expand;
     // make room instead of covering the page's own edge
     document.documentElement.style.setProperty("margin-" + settings.side, WIDTH + "px", "important");
   }
@@ -50,7 +52,7 @@
   async function refresh() {
     const settings = await loadSettings();
     if (!settings.enabled) return unmount();
-    if (!host || shownSide !== settings.side) await mount(settings);
+    if (!host || shownSide !== settings.side || shownExpand !== settings.expand) await mount(settings);
   }
 
   chrome.storage.onChanged.addListener((changes, area) => {

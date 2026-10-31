@@ -10,29 +10,46 @@
 </head>
 <body>
   <main>
-    <h1 class="fj-title-page">화면 가장자리 레일</h1>
-    <p class="fj-caption lead">웹페이지 가장자리에 항상 보이는 아이콘 줄이에요. 아이콘을 누르면 사이드 패널에서 열려요.</p>
-    <div class="card rail-settings">
-      <label class="fj-row"><span class="fj-row__grow">레일 표시</span><span class="fj-toggle"><input id="railOn" type="checkbox"><span class="fj-toggle__track"></span></span></label>
-      <label class="fj-row"><span class="fj-row__grow">위치</span>
-        <select id="railSide" class="fj-field"><option value="left">왼쪽</option><option value="right">오른쪽</option></select>
-      </label>
-    </div>
+    <header class="top">
+      <img src="../../icons/icon48.png" alt="" width="40" height="40">
+      <div>
+        <h1 class="fj-title-page">Fjord 설정</h1>
+        <p class="fj-caption">사이드바, 레일, 단축키를 내 방식으로 바꿔요.</p>
+      </div>
+    </header>
 
-    <h1 class="fj-title-page">사이드바 항목</h1>
-    <p class="fj-caption lead">자주 쓰는 사이트와 웹앱을 추가하세요. 아이콘을 누르면 사이드 패널에 열려요.</p>
+    <section class="card">
+      <h2>화면 가장자리 레일</h2>
+      <p class="fj-caption note">웹페이지 가장자리에 항상 보이는 아이콘 줄이에요. 아이콘을 누르면 사이드 패널에서 열려요.</p>
+      <label class="line"><span class="grow">레일 표시</span><span class="fj-toggle"><input id="railOn" type="checkbox"><span class="fj-toggle__track"></span></span></label>
+      <div class="line"><span class="grow">위치</span>
+        <div class="seg" id="railSide" role="radiogroup" aria-label="레일 위치">
+          <button type="button" role="radio" data-side="left">왼쪽</button>
+          <button type="button" role="radio" data-side="right">오른쪽</button>
+        </div>
+      </div>
+      <label class="line"><span class="grow">마우스를 올리면 펼치기<small>라벨과 구역 제목이 보여요</small></span><span class="fj-toggle"><input id="railExpand" type="checkbox"><span class="fj-toggle__track"></span></span></label>
+    </section>
 
-    <ul id="list" class="card"></ul>
+    <section class="card">
+      <h2>고정 사이트</h2>
+      <p class="fj-caption note">자주 쓰는 사이트와 웹앱이에요. 레일과 사이드 패널 위쪽에 나타나요. (Claude는 기본 패널이라 따로 추가하지 않아도 돼요.)</p>
+      <ul id="list"></ul>
+      <form id="add">
+        <input id="name" class="fj-field" placeholder="이름 (예: Notion)" maxlength="40" required>
+        <input id="url" class="fj-field" placeholder="주소 (예: notion.so)" required>
+        <button type="submit" class="fj-btn fj-btn--primary">추가</button>
+      </form>
+      <p id="msg" class="fj-caption msg" role="status"></p>
+      <p class="fj-caption note">일부 사이트는 로그인 쿠키 정책이나 프레임 차단 때문에 패널 안에서 제대로 동작하지 않을 수 있어요. 그럴 땐 패널 위쪽 ↗ 버튼으로 새 탭에서 여세요.</p>
+      <button id="reset" class="fj-btn fj-btn--ghost">기본 사이트로 되돌리기</button>
+    </section>
 
-    <form id="add">
-      <input id="name" class="fj-field" placeholder="이름 (예: Claude)" maxlength="40" required>
-      <input id="url" class="fj-field" placeholder="주소 (예: claude.ai)" required>
-      <button type="submit" class="fj-btn fj-btn--primary">추가</button>
-    </form>
-    <p id="msg" class="fj-caption msg" role="status"></p>
-
-    <p class="fj-caption">일부 사이트는 로그인 쿠키 정책이나 프레임 차단 때문에 패널 안에서 제대로 동작하지 않을 수 있어요. 그럴 땐 패널 위쪽 ↗ 버튼으로 새 탭에서 여세요.</p>
-    <button id="reset" class="fj-btn fj-btn--ghost">기본 항목으로 되돌리기</button>
+    <section class="card">
+      <h2>단축키</h2>
+      <div class="line"><span class="grow">다음 워크스페이스로 전환</span><kbd>Alt + Q</kbd></div>
+      <div class="line"><span class="grow">단축키는 Chrome 설정에서 바꿀 수 있어요</span><button id="shortcuts" class="fj-btn" type="button">단축키 설정 열기</button></div>
+    </section>
   </main>
   <script type="module" src="options.js"></script>
 </body>

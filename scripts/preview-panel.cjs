@@ -136,6 +136,14 @@ app.whenReady().then(async () => {
         nw.close();
         await sleep(250);
       }
+      { // the extension's options page
+        const ow = mk(900, 1000);
+        await ow.loadURL(`${base}/modules/sidebar/options.html`);
+        await sleep(900);
+        await shot(ow, `options-${theme}.png`);
+        ow.close();
+        await sleep(250);
+      }
       // rail on a normal page: collapsed, then expanded
       const rw = mk(900, 560);
       await rw.loadURL(`${base}/mock-page`);

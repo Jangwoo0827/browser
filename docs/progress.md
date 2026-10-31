@@ -231,3 +231,8 @@
 - **아이콘**: 둥근 모양(원형 그라데이션 + 옅은 테두리/하이라이트, 안에 레일+페이지 기호). `scripts/make-icons.py`로 확장 아이콘/`assets/icon.*` 재생성. 작업 표시줄 exe 아이콘은 다음 콜드 스타트에 `brand-exe`가 다시 입힘.
 - **새 탭**(`modules/newtab`): 시간대별 인사 + 큰 시계 + 날짜, 유리(glass) 검색창(`/`로 포커스), 워크스페이스 분할 스위치, 둥근 사각 타일 스피드 다이얼(Chrome 파비콘 캐시 사용), **열린 탭 줄**(탭 줄 모양의 알약, 클릭하면 이동, +로 스피드 다이얼에 추가), 최근 방문/북마크 카드("더 보기"는 사이드 패널의 해당 패널 열기). 다크에서는 피오르드 야경 배경. 화면은 `scripts/preview-panel.cjs`로 다크/라이트 확인. Electron 앱의 새 탭은 그대로(이번엔 Chromium 쪽만).
 - **설치 파일**: `scripts/build-installer.ps1` → `dist/Fjord-Setup.exe`(IExpress). 설치/제거 스크립트는 `installer/`. 테스트: 파일 풀기·레지스트리 등록·제거 정보까지 임시 폴더에서 확인(바로가기/Chromium 다운로드/실제 실행/제거는 직접 해 보지 않음). 자세한 내용 `docs/installer.md`.
+
+## 확장 설정 페이지 개편 + 레일 펼침 옵션 (2026-10-31)
+- `modules/sidebar/options.*`: 카드형 설정 화면(로고 헤더, 레일: 표시/위치 분할 스위치/**마우스 올리면 펼치기**, 고정 사이트: 파비콘·위/아래/삭제 아이콘 버튼·한 줄 추가 폼, 단축키: Alt+Q 안내 + Chrome 단축키 설정 열기). Claude는 기본 패널이라 고정 사이트에서 따로 추가하지 않아도 됨.
+- 레일: `railSettings.expand`(기본 켬)를 끄면 호버 펼침 없이 48px 아이콘 줄만 유지. 값이 바뀌면 레일을 다시 그림.
+- 화면은 `scripts/preview-panel.cjs`(숨김 창)로 확인: `logs/options-dark.png`/`options-light.png`. 실제 Fjord에서는 재시작 후 확인 필요.

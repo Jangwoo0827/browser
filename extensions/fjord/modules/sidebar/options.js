@@ -1,29 +1,45 @@
 import { Store } from "./store.js";
+import { icon } from "../../ui/icons.js";
+import { glyphColor } from "../../ui/glyph.js";
 
 const $ = (id) => document.getElementById(id);
 let items = [];
 
-function mini(label, title, fn, disabled) {
+function iconBtn(name, title, fn, { disabled = false, cls = "" } = {}) {
   const b = document.createElement("button");
-  b.className = "fj-btn mini";
-  b.textContent = label;
+  b.className = "ibtn " + cls;
+  b.type = "button";
   b.title = title;
-  b.disabled = !!disabled;
+  b.setAttribute("aria-label", title);
+  b.disabled = disabled;
+  b.innerHTML = icon(name);
   b.onclick = fn;
   return b;
 }
 
+function glyph(item) {
+  const el = document.createElement("span");
+  el.className = "fj-glyph";
+  el.style.background = glyphColor(item.name, item.url);
+  el.textContent = (item.name.trim()[0] || "?").toUpperCase();
+  return el;
+}
+
 function row(item, index) {
   const li = document.createElement("li");
-  li.className = "fj-row";
-  const name = Object.assign(document.createElement("span"), { className: "name", textContent: item.name });
-  const url = Object.assign(document.createElement("span"), { className: "url", textContent: item.url });
+  const img = document.createElement("img");
+  img.alt = "";
+  img.src = `${chrome.runtime.getURL("/_favicon/")}?pageUrl=${encodeURIComponent(item.url)}&size=64`;
+  img.onerror = () => img.replaceWith(glyph(item));
+  const who = document.createElement("span");
+  who.className = "who";
+  who.append(Object.assign(document.createElement("span"), { className: "name", textContent: item.name }), Object.assign(document.createElement("span"), { className: "url", textContent: item.url }));
   li.append(
-    name,
-    url,
-    mini("↑", "위로", () => move(index, -1), index === 0),
-    mini("↓", "아래로", () => move(index, 1), index === items.length - 1),
-    mini("삭제", "삭제", () => remove(index))
+    img,
+    who,
+    iconBtn("chevronDown", "위로", () => move(index, -1), { disabled: index === 0, cls: "up" }),
+    iconBtn("chevronDown", "아래로", () => move(index, 1), { disabled: index === items.length - 1 }),
+    iconBtn("trash", "삭제", () => remove(index), { cls: "danger" })
   );
   return li;
 }
@@ -76,13 +92,18 @@ $("reset").onclick = () => {
 // edge rail settings (read by modules/rail)
 async function railInit() {
   const { railSettings } = await chrome.storage.local.get("railSettings");
-  const cur = { enabled: true, side: "left", ...(railSettings || {}) };
+  const cur = { enabled: true, side: "left", expand: true, ...(railSettings || {}) };
   $("railOn").checked = cur.enabled;
-  $("railSide").value = cur.side;
-  const save = () => chrome.storage.local.set({ railSettings: { enabled: $("railOn").checked, side: $("railSide").value } });
+  $("railExpand").checked = cur.expand !== false;
+  const paintSide = () => document.querySelectorAll("#railSide button").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.side === cur.side)));
+  paintSide();
+  const save = () => chrome.storage.local.set({ railSettings: { enabled: $("railOn").checked, side: cur.side, expand: $("railExpand").checked } });
   $("railOn").onchange = save;
-  $("railSide").onchange = save;
+  $("railExpand").onchange = save;
+  document.querySelectorAll("#railSide button").forEach((b) => (b.onclick = () => { cur.side = b.dataset.side; paintSide(); save(); }));
 }
+
+$("shortcuts").onclick = () => chrome.tabs.create({ url: "chrome://extensions/shortcuts" });
 
 (async () => {
   items = (await Store.load()).items;
