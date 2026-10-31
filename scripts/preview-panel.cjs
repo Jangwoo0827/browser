@@ -79,9 +79,11 @@ window.chrome = {
   runtime: { id: "preview", getURL: (p) => ORIGIN + (p.startsWith("/") ? p : "/" + p), openOptionsPage() {}, sendMessage: async (m) => m && m.type === "ws:state" ? { activeId: "personal", workspaces: store.workspaces.map((w, i) => ({ ...w, count: [5, 3, 0][i] })) } : {}, onMessage: ev() },
   storage: { local: area(store), session: area(sess), onChanged: ev() },
   tabs: { query: async () => [tabsAll[1]], update: async () => ({}), create: async () => ({}), remove: async () => {}, onCreated: ev(), onRemoved: ev(), onUpdated: ev(), onActivated: ev(), onMoved: ev(), onAttached: ev(), onDetached: ev() },
-  windows: { getAll: async () => wins, getLastFocused: async () => ({ id: 1 }), update: async () => ({}), onRemoved: ev(), onFocusChanged: ev() },
+  windows: { getCurrent: async () => ({ id: 1 }), getAll: async () => wins, getLastFocused: async () => ({ id: 1 }), update: async () => ({}), onRemoved: ev(), onFocusChanged: ev() },
   bookmarks: { getTree: async () => tree, search: async (q) => { const needle = typeof q === "string" ? q.toLowerCase() : ""; return flat(tree[0]).filter((n) => typeof q === "string" ? (n.title + n.url).toLowerCase().includes(needle) : n.url === q.url); }, create: async () => ({}), remove: async () => {}, onCreated: ev(), onRemoved: ev(), onChanged: ev(), onMoved: ev() },
   history: { search: async ({ text }) => hist.filter((h) => !text || (h.title + h.url).toLowerCase().includes(text.toLowerCase())), deleteUrl: async () => {}, onVisited: ev(), onVisitRemoved: ev() },
+  search: { query() {} },
+  sidePanel: { open: async () => {} },
   scripting: { executeScript: async () => [{ result: { selection: "", text: "예시 페이지 본문" } }] },
 };
 `);
@@ -124,6 +126,14 @@ app.whenReady().then(async () => {
         await sleep(700);
         await shot(ww, `workspaces-page-${theme}.png`);
         ww.close();
+        await sleep(250);
+      }
+      { // the new tab page
+        const nw = mk(1280, 780);
+        await nw.loadURL(`${base}/modules/newtab/newtab.html`);
+        await sleep(1200);
+        await shot(nw, `newtab-${theme}.png`);
+        nw.close();
         await sleep(250);
       }
       // rail on a normal page: collapsed, then expanded

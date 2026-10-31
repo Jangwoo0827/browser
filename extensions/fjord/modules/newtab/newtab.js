@@ -65,13 +65,19 @@ function glyph(name, url) {
   return el;
 }
 
+// Chrome's favicon cache (sharp, works for every site); the letter avatar if it has nothing
+const faviconUrl = (url, size = 64) => `${chrome.runtime.getURL("/_favicon/")}?pageUrl=${encodeURIComponent(url)}&size=${size}`;
+
 function favicon(item) {
+  const wrap = document.createElement("span");
+  wrap.className = "fav-wrap";
   const img = document.createElement("img");
   img.className = "fav";
   img.alt = "";
-  img.src = new URL("/favicon.ico", item.url).href;
+  img.src = faviconUrl(item.url);
   img.onerror = () => img.replaceWith(glyph(item.name, item.url));
-  return img;
+  wrap.append(img);
+  return wrap;
 }
 
 function toolButton(name, title, fn) {
@@ -227,8 +233,79 @@ $("search").onsubmit = (e) => {
 };
 
 function tick() {
-  $("clock").textContent = new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false });
+  const now = new Date();
+  $("clock").textContent = now.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false });
+  $("date").textContent = now.toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
+  const hr = now.getHours();
+  $("greeting").textContent = hr < 5 ? "늦은 시간이네요" : hr < 12 ? "좋은 아침이에요" : hr < 18 ? "좋은 오후예요" : "좋은 저녁이에요";
 }
+
+// ---- cards: recent visits + bookmark bar (both come from Chrome itself) ----
+const hostOf = (url) => { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; } };
+
+function cardRow(item) {
+  const a = document.createElement("a");
+  a.className = "card-row";
+  a.href = item.url;
+  a.title = `${item.title || item.url}
+${item.url}`;
+  const img = document.createElement("img");
+  img.alt = "";
+  img.width = 18;
+  img.height = 18;
+  img.src = faviconUrl(item.url, 32);
+  img.onerror = () => img.replaceWith(glyph(item.title || hostOf(item.url), item.url));
+  const text = document.createElement("span");
+  text.className = "card-text";
+  const t = document.createElement("span");
+  t.className = "card-title";
+  t.textContent = item.title || hostOf(item.url);
+  const s = document.createElement("span");
+  s.className = "card-sub";
+  s.textContent = hostOf(item.url);
+  text.append(t, s);
+  a.append(img, text);
+  return a;
+}
+
+async function renderCards() {
+  const tile = new Set(tiles().map((x) => hostOf(x.url)));
+  let recent = [];
+  try {
+    const seen = new Set();
+    for (const h of await chrome.history.search({ text: "", maxResults: 60, startTime: 0 })) {
+      const host = hostOf(h.url);
+      if (!/^https?:/.test(h.url) || seen.has(host) || tile.has(host)) continue; // one per site, skip what is already a tile
+      seen.add(host);
+      recent.push(h);
+      if (recent.length === 5) break;
+    }
+  } catch {}
+  let marks = [];
+  try {
+    const roots = (await chrome.bookmarks.getTree())[0].children || [];
+    marks = (roots[0]?.children || []).filter((n) => n.url).slice(0, 5);
+  } catch {}
+  $("listHistory").replaceChildren(...recent.map(cardRow));
+  $("listBookmarks").replaceChildren(...marks.map(cardRow));
+  $("cardHistory").hidden = !recent.length;
+  $("cardBookmarks").hidden = !marks.length;
+  $("cards").hidden = !recent.length && !marks.length;
+}
+
+document.querySelectorAll(".more").forEach((b) => {
+  b.onclick = async () => {
+    const opened = chrome.sidePanel.open({ windowId: (await chrome.windows.getCurrent()).id });
+    const { ui } = await chrome.storage.local.get("ui");
+    await chrome.storage.local.set({ ui: { ...(ui || {}), activeId: b.dataset.pane } });
+    await opened;
+  };
+});
+
+// "/" jumps to the search box, like most start pages
+document.addEventListener("keydown", (e) => {
+  if (e.key === "/" && document.activeElement !== $("q") && !document.querySelector("dialog[open]")) { e.preventDefault(); $("q").focus(); }
+});
 
 chrome.storage.onChanged.addListener(async (changes, area) => {
   if (area === "local" && (changes.dialByWs || changes.dial || changes.workspaces || changes.wsActive)) {
@@ -260,6 +337,7 @@ async function showRail() {
   setInterval(tick, 15000);
   await load();
   render();
+  renderCards();
   $("q").focus();
   showRail();
 })();

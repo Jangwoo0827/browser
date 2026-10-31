@@ -1,4 +1,4 @@
-"""Generate the placeholder app icon (PNG sizes for the extension + a multi-size .ico).
+"""Generate the app icon (round, like the other browsers) (PNG sizes for the extension + a multi-size .ico).
 
 Pure standard library (zlib/struct), no Pillow needed.
 Usage: python scripts/make-icons.py
@@ -33,15 +33,20 @@ def render(size):
                     x = i + (sx + 0.5) / SS
                     y = j + (sy + 0.5) / SS
                     u, v = x / size, y / size
-                    base = rrect_cov(u, v, 1, 1, 0.22)
-                    if base == 0.0:
+                    # round icon: a circle with a thin lighter rim and a soft highlight at the top left
+                    d = ((u - 0.5) ** 2 + (v - 0.5) ** 2) ** 0.5
+                    if d > 0.485:
                         continue
                     # gradient diagonal
                     t = min(max((u + v) / 2, 0), 1)
                     col = tuple(top[k] + (bottom[k] - top[k]) * t for k in range(3))
+                    hl = max(0.0, 1 - (((u - 0.30) ** 2 + (v - 0.24) ** 2) ** 0.5) / 0.55) ** 2 * 0.22
+                    col = tuple(col[k] * (1 - hl) + 255 * hl for k in range(3))
+                    rim = max(0.0, 1 - (0.485 - d) / 0.022) * 0.28
+                    col = tuple(col[k] * (1 - rim) + 255 * rim for k in range(3))
                     # white "sidebar" glyph: rail on the left, panel on the right
-                    rail = rrect_cov(u - 0.20, v - 0.24, 0.14, 0.52, 0.04)
-                    panel = rrect_cov(u - 0.42, v - 0.24, 0.38, 0.52, 0.06)
+                    rail = rrect_cov(u - 0.265, v - 0.30, 0.105, 0.40, 0.035)
+                    panel = rrect_cov(u - 0.43, v - 0.30, 0.305, 0.40, 0.05)
                     g = max(rail, panel)
                     col = tuple(col[k] * (1 - g) + 255 * g for k in range(3))
                     acc_a += 1

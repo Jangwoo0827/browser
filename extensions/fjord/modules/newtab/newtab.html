@@ -12,21 +12,36 @@
 <body>
   <header id="top">
     <img class="logo" src="../../icons/icon32.png" alt="" width="24" height="24">
-    <span class="fj-label wordmark">Fjord</span>
+    <span class="wordmark">Fjord</span>
   </header>
 
   <main>
     <section id="hero">
-      <div id="clock" class="fj-display" aria-hidden="true"></div>
-      <nav id="chips" aria-label="워크스페이스"></nav>
+      <p id="greeting"></p>
+      <div id="clock" aria-hidden="true"></div>
+      <p id="date"></p>
     </section>
 
     <form id="search" autocomplete="off" role="search">
       <span id="searchIcon"></span>
       <input id="q" type="text" placeholder="검색어 또는 주소 입력" aria-label="검색 또는 주소 입력" autofocus>
+      <kbd id="slash" aria-hidden="true">/</kbd>
     </form>
 
+    <nav id="chips" aria-label="워크스페이스"></nav>
+
     <div id="grid" role="list"></div>
+
+    <section id="cards" hidden>
+      <article class="card" id="cardHistory" hidden>
+        <header><h2>최근 방문</h2><button type="button" class="more" data-pane="@history">더 보기</button></header>
+        <div class="card-list" id="listHistory"></div>
+      </article>
+      <article class="card" id="cardBookmarks" hidden>
+        <header><h2>북마크</h2><button type="button" class="more" data-pane="@bookmarks">더 보기</button></header>
+        <div class="card-list" id="listBookmarks"></div>
+      </article>
+    </section>
   </main>
 
   <dialog id="dlg">
